@@ -30,6 +30,26 @@ import {
   CheckersXPApp,
   TetrisXPApp,
 } from './components/apps/games/ExtraClassicGames';
+import { Maze3DApp } from './components/apps/games/Maze3DApp';
+import {
+  OregonTrailApp,
+  ChipsChallengeApp,
+  RodentsRevengeApp,
+  PipeDreamApp,
+  PurblePlaceApp,
+  SnakeNibblesApp,
+  BreakoutDXApp,
+} from './components/apps/games/RetroGamesPack';
+import {
+  GorillasQBasicApp,
+  PacChompApp,
+  FroggerClassicApp,
+  PongClassicApp,
+  ClassicGamesVaultApp,
+} from './components/apps/games/ClassicArcadeVault';
+import { OSSwitcherApp } from './components/shell/MultiOSShells';
+import { UnixTerminalApp } from './components/apps/system/UnixTerminalApp';
+import { CompanionsStudioApp } from './components/shell/BonziCompanion';
 
 // Arena AI Agent & Windows Update
 import { ArenaAgentApp } from './components/apps/arena/ArenaAgentApp';
@@ -45,7 +65,6 @@ import {
   MIRCApp,
   CodeStudioApp,
   LimeWireApp,
-  BonziSettingsApp,
   HyperCamApp,
   CustomWebAppRunner,
 } from './components/apps/installer/InstalledApps';
@@ -124,6 +143,38 @@ const renderAppContent = (win: WindowInstance) => {
       return <CheckersXPApp />;
     case 'tetris':
       return <TetrisXPApp />;
+    case 'maze3d':
+      return <Maze3DApp />;
+    case 'oregon-trail':
+      return <OregonTrailApp />;
+    case 'chips-challenge':
+      return <ChipsChallengeApp />;
+    case 'rodents-revenge':
+      return <RodentsRevengeApp />;
+    case 'pipe-dream':
+      return <PipeDreamApp />;
+    case 'purble-place':
+      return <PurblePlaceApp />;
+    case 'snake':
+      return <SnakeNibblesApp />;
+    case 'breakout':
+      return <BreakoutDXApp />;
+    case 'gorillas':
+      return <GorillasQBasicApp />;
+    case 'pacman':
+      return <PacChompApp />;
+    case 'frogger':
+      return <FroggerClassicApp />;
+    case 'pong':
+      return <PongClassicApp />;
+    case 'games-vault':
+      return <ClassicGamesVaultApp />;
+    case 'os-switcher':
+      return <OSSwitcherApp />;
+    case 'unix-terminal':
+      return <UnixTerminalApp />;
+    case 'companions':
+      return <CompanionsStudioApp />;
     case 'notepad':
       return <NotepadApp windowId={win.id} payload={win.payload} />;
     case 'wordpad':
@@ -173,7 +224,7 @@ const renderAppContent = (win: WindowInstance) => {
     case 'limewire':
       return <LimeWireApp />;
     case 'bonzibuddy':
-      return <BonziSettingsApp />;
+      return <CompanionsStudioApp />;
     case 'hypercam':
       return <HyperCamApp />;
     default:

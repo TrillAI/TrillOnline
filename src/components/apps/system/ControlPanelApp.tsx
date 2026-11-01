@@ -4,7 +4,12 @@ import { useSound, SoundEffect } from '../../../context/SoundContext';
 import { WindowsXPFlagSVG } from '../aol/AOLGraphics';
 
 const WALLPAPERS = [
-  { name: 'Bliss (Default)', url: '/wallpapers/bliss.jpg' },
+  { name: 'Bliss (Windows XP Default)', url: '/wallpapers/bliss.jpg' },
+  { name: 'Windows 10 Hero Blue', url: '/wallpapers/win10-hero.svg' },
+  { name: 'Mac OS X Aqua Aurora', url: '/wallpapers/macos-aqua.svg' },
+  { name: 'GNU/Linux Tux Night', url: '/wallpapers/linux-tux.svg' },
+  { name: 'Debian 12 Bookworm Emerald', url: '/wallpapers/debian-bookworm.svg' },
+  { name: 'CentOS Enterprise Facets', url: '/wallpapers/centos-stream.svg' },
   { name: 'Azul', url: '/wallpapers/azul.jpg' },
   { name: 'Ascent', url: '/wallpapers/ascent.jpg' },
   { name: 'Autumn', url: '/wallpapers/autumn.jpg' },
@@ -216,6 +221,8 @@ export const ControlPanelApp: React.FC<{ payload?: Record<string, unknown> }> = 
                 value={screensaver}
                 onChange={(e) => setScreensaver(e.target.value as ScreensaverType)}
               >
+                <option value="maze3d">3D Brick Maze (Windows 95 OpenGL)</option>
+                <option value="pipes3d">3D Metallic Pipes (Windows 98/XP)</option>
                 <option value="starfield">3D Starfield</option>
                 <option value="xpflag">Windows XP Logo</option>
                 <option value="mystify">Mystify Polygons</option>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOS } from '../../context/OSContext';
 import { useSound } from '../../context/SoundContext';
 import { StartMenu } from './StartMenu';
+import { MultiOSShellChrome } from './MultiOSShells';
 import { WindowsXPFlagSVG } from '../apps/aol/AOLGraphics';
 
 interface TaskbarProps {
@@ -10,6 +11,7 @@ interface TaskbarProps {
 
 export const Taskbar: React.FC<TaskbarProps> = ({ onShowModal }) => {
   const {
+    osType,
     windows,
     activeWindowId,
     focusWindow,
@@ -19,6 +21,7 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onShowModal }) => {
     unreadInboxCount,
     balloon,
     dismissBalloon,
+    triggerBonziSwing,
   } = useOS();
   const { volume, muted, setVolume, setMuted, playSound } = useSound();
 
@@ -57,6 +60,10 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onShowModal }) => {
     window.addEventListener('click', closeMenus);
     return () => window.removeEventListener('click', closeMenus);
   }, []);
+
+  if (osType !== 'winxp') {
+    return <MultiOSShellChrome onShowModal={onShowModal} />;
+  }
 
   return (
     <>
@@ -280,6 +287,22 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onShowModal }) => {
           >
             <img src="/icons/luna16/net_modem.png" alt="Modem" style={{ width: 16, height: 16 }} />
           </div>
+
+          {/* Quick OS Switcher & BonziBUDDY Tray Icons */}
+          <img
+            src="/icons/os-switcher.svg"
+            alt="Switch OS"
+            title="Switch Operating System (Windows XP • Windows 10 • Mac OS • Linux • Debian • CentOS)"
+            onClick={() => openApp('os-switcher')}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
+          <img
+            src="/icons/bonzi.svg"
+            alt="BonziBUDDY"
+            title="Summon BonziBUDDY (Swings in on a web, talks & sings!)"
+            onClick={() => triggerBonziSwing('bonzi')}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
 
           {/* Arena AI OS Copilot Tray Icon */}
           <img

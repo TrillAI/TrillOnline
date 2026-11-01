@@ -62,6 +62,18 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
             <div className="xp-sm-sep" />
 
             {/* Frequently Used Programs */}
+            <div className="xp-sm-item" onClick={() => launch('os-switcher')}>
+              <img src="/icons/os-switcher.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span style={{ fontWeight: 700, color: '#1d4ed8' }}>Switch OS (6 Operating Systems)</span>
+            </div>
+            <div className="xp-sm-item" onClick={() => launch('companions')}>
+              <img src="/icons/bonzi.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span style={{ fontWeight: 700, color: '#6b21a8' }}>BonziBUDDY (Swings &amp; Sings!)</span>
+            </div>
+            <div className="xp-sm-item" onClick={() => launch('maze3d')}>
+              <img src="/icons/maze3d.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span style={{ fontWeight: 700 }}>3D Brick Maze (Win95)</span>
+            </div>
             <div className="xp-sm-item" onClick={() => launch('arena-ai')}>
               <img src="/icons/arena-ai.svg" alt="" style={{ width: 24, height: 24 }} />
               <span style={{ fontWeight: 700 }}>Arena AI Agent</span>
@@ -70,21 +82,17 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
               <img src="/icons/slingo.svg" alt="" style={{ width: 24, height: 24 }} />
               <span style={{ fontWeight: 700 }}>Slingo Deluxe</span>
             </div>
+            <div className="xp-sm-item" onClick={() => launch('oregon-trail')}>
+              <img src="/icons/oregon-trail.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span>The Oregon Trail (1848)</span>
+            </div>
             <div className="xp-sm-item" onClick={() => launch('powershell')}>
               <img src="/icons/powershell.svg" alt="" style={{ width: 24, height: 24 }} />
               <span>Windows PowerShell 1.0</span>
             </div>
-            <div className="xp-sm-item" onClick={() => launch('solitaire')}>
-              <img src="/icons/solitaire.png" alt="" style={{ width: 24, height: 24 }} />
-              <span>Solitaire &amp; Spider</span>
-            </div>
-            <div className="xp-sm-item" onClick={() => launch('aol-dialer')}>
-              <img src="/icons/luna32/net_modem.png" alt="" style={{ width: 24, height: 24 }} />
-              <span>America Online 9.0</span>
-            </div>
-            <div className="xp-sm-item" onClick={() => launch('software-center')}>
-              <img src="/icons/luna32/file_generic_installer.png" alt="" style={{ width: 24, height: 24 }} />
-              <span>Install Software (.EXE)</span>
+            <div className="xp-sm-item" onClick={() => launch('unix-terminal')}>
+              <img src="/icons/terminal-unix.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span>Unix Bash / Zsh Terminal</span>
             </div>
           </div>
 
@@ -184,6 +192,18 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                         color: '#000',
                       }}
                     >
+                      <div className="xp-sm-item" onClick={() => launch('os-switcher')} style={{ background: '#fef9c3' }}>
+                        <img src="/icons/os-switcher.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>Multi-OS Boot Manager (6 OS)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('unix-terminal')} style={{ background: '#ecfdf5' }}>
+                        <img src="/icons/terminal-unix.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>Bash / Zsh Unix Shell</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('companions')} style={{ background: '#faf5ff' }}>
+                        <img src="/icons/bonzi.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>BonziBUDDY &amp; Companions</span>
+                      </div>
                       <div className="xp-sm-item" onClick={() => launch('powershell')} style={{ background: '#eff6ff' }}>
                         <img src="/icons/powershell.svg" alt="" style={{ width: 16, height: 16 }} />
                         <span style={{ fontWeight: 700 }}>Windows PowerShell 1.0</span>
@@ -236,7 +256,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <img src="/icons/358(16x16).png" alt="" style={{ width: 16, height: 16 }} />
-                    <b>Games (12 Classic Titles)</b>
+                    <b>Games (24 Classic Titles)</b>
                   </span>
                   <span>▶</span>
 
@@ -246,7 +266,9 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                         position: 'absolute',
                         left: '100%',
                         bottom: -36,
-                        width: 234,
+                        width: 244,
+                        maxHeight: 410,
+                        overflowY: 'auto',
                         background: '#fff',
                         border: '1px solid #4880d8',
                         borderLeft: '4px solid #4880d8',
@@ -255,6 +277,59 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                         color: '#000',
                       }}
                     >
+                      <div className="xp-sm-item" onClick={() => launch('games-vault')} style={{ background: '#fef08a' }}>
+                        <img src="/icons/luna32/gamepad.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>All 24 Classic Games Vault</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('maze3d')} style={{ background: '#fee2e2' }}>
+                        <img src="/icons/maze3d.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>3D Brick Maze (Win95)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('oregon-trail')} style={{ background: '#dcfce7' }}>
+                        <img src="/icons/oregon-trail.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>The Oregon Trail (1848)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('chips-challenge')}>
+                        <img src="/icons/chips-challenge.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>Chip&apos;s Challenge</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('rodents-revenge')}>
+                        <img src="/icons/rodents-revenge.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Rodent&apos;s Revenge</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('pipe-dream')}>
+                        <img src="/icons/pipe-dream.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Pipe Dream</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('purble-place')}>
+                        <img src="/icons/purble-place.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Purble Place</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('snake')}>
+                        <img src="/icons/nibbles.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>QBasic Nibbles / Snake</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('gorillas')}>
+                        <img src="/icons/bonzi.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>QBasic GORILLA.BAS</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('pacman')}>
+                        <img src="/icons/luna32/gamepad.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Pac-Chomp Arcade</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('frogger')}>
+                        <img src="/icons/luna32/gamepad.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Classic Frogger</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('pong')}>
+                        <img src="/icons/luna32/gamepad.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>1972 Classic Pong</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('breakout')}>
+                        <img src="/icons/dxball.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>DX-Ball Brick Breaker</span>
+                      </div>
+                      <div className="xp-sm-sep" />
                       <div className="xp-sm-item" onClick={() => launch('slingo')} style={{ background: '#fff7d6' }}>
                         <img src="/icons/slingo.svg" alt="" style={{ width: 16, height: 16 }} />
                         <span style={{ fontWeight: 700 }}>Slingo Deluxe (AOL)</span>

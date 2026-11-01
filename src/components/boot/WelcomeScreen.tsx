@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useOS } from '../../context/OSContext';
+import { useOS, OS_METADATA, OSType } from '../../context/OSContext';
 import { useSound } from '../../context/SoundContext';
 import { WindowsXPFlagSVG } from '../apps/aol/AOLGraphics';
 
+const ALL_OS: OSType[] = ['winxp', 'win10', 'macos', 'linux', 'debian', 'centos'];
+
 export const WelcomeScreen: React.FC = () => {
-  const { bootPhase, setBootPhase, username, userAvatar, loginToDesktop, triggerShutdown } = useOS();
+  const {
+    bootPhase,
+    setBootPhase,
+    osType,
+    switchOperatingSystem,
+    username,
+    userAvatar,
+    loginToDesktop,
+    triggerShutdown,
+  } = useOS();
   const { unlockAudio } = useSound();
   const [loggingIn, setLoggingIn] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -12,7 +23,7 @@ export const WelcomeScreen: React.FC = () => {
   useEffect(() => {
     setLoggingIn(false);
     setHovered(false);
-  }, [bootPhase]);
+  }, [bootPhase, osType]);
 
   const handleLogin = () => {
     if (loggingIn) return;
@@ -20,7 +31,7 @@ export const WelcomeScreen: React.FC = () => {
     setLoggingIn(true);
     window.setTimeout(() => {
       loginToDesktop();
-    }, 600);
+    }, 550);
   };
 
   if (bootPhase === 'powered_off') {
@@ -69,6 +80,128 @@ export const WelcomeScreen: React.FC = () => {
   if (bootPhase !== 'welcome' && bootPhase !== 'shutting_down') return null;
 
   const isShuttingDown = bootPhase === 'shutting_down';
+
+  // Non-XP Modern / Unix Passwordless Click-to-Login Screens (Windows 10, Mac OS, Linux, Debian, CentOS)
+  if (osType !== 'winxp') {
+    const meta = OS_METADATA[osType];
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundImage: `url("${meta.defaultWallpaper}")`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99998,
+          userSelect: 'none',
+          fontFamily: osType === 'macos' ? '-apple-system, BlinkMacSystemFont, sans-serif' : '"Segoe UI", Tahoma, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(10, 15, 28, 0.52)',
+            backdropFilter: 'blur(14px)',
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 16,
+            color: '#fff',
+            textAlign: 'center',
+          }}
+        >
+          <img src={meta.icon} alt="" style={{ width: 52, height: 52 }} />
+          <div style={{ fontSize: 14, color: '#cbd5e1', fontWeight: 600 }}>{meta.name}</div>
+
+          <img
+            src={userAvatar}
+            alt={username}
+            onClick={handleLogin}
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: '50%',
+              border: '3px solid rgba(255,255,255,0.85)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+              objectFit: 'cover',
+              cursor: 'pointer',
+            }}
+          />
+
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{username}</div>
+
+          {isShuttingDown ? (
+            <div style={{ fontSize: 16, color: '#fde047' }}>Shutting down {meta.shortName}...</div>
+          ) : (
+            <button
+              onClick={handleLogin}
+              style={{
+                padding: '9px 34px',
+                borderRadius: osType === 'macos' ? 99 : 5,
+                border: '1px solid rgba(255,255,255,0.5)',
+                background: meta.accent,
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+              }}
+            >
+              {loggingIn ? 'Signing in...' : `Sign in to ${meta.shortName}`}
+            </button>
+          )}
+        </div>
+
+        {/* Bottom OS Switcher Bar */}
+        {!isShuttingDown && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 22,
+              zIndex: 2,
+              display: 'flex',
+              gap: 6,
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+            }}
+          >
+            {ALL_OS.map((id) => (
+              <button
+                key={id}
+                onClick={() => switchOperatingSystem(id, false)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 99,
+                  border: osType === id ? '1.5px solid #fff' : '1px solid rgba(255,255,255,0.28)',
+                  background: osType === id ? 'rgba(255,255,255,0.24)' : 'rgba(0,0,0,0.38)',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {OS_METADATA[id].shortName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Authentic Windows XP Split Royal-Blue Welcome Screen!
   const tileActive = hovered || loggingIn;
 
   return (
@@ -118,15 +251,7 @@ export const WelcomeScreen: React.FC = () => {
         }
       `}</style>
 
-      {/* Top Deep Royal Blue Header Bar */}
-      <div
-        style={{
-          height: 82,
-          background: '#00309c',
-          position: 'relative',
-          flexShrink: 0,
-        }}
-      >
+      <div style={{ height: 82, background: '#00309c', position: 'relative', flexShrink: 0 }}>
         <div
           style={{
             position: 'absolute',
@@ -139,7 +264,6 @@ export const WelcomeScreen: React.FC = () => {
         />
       </div>
 
-      {/* Main Split Blue Welcome Canvas */}
       <div
         className="xp-welcome-grid"
         style={{
@@ -178,7 +302,6 @@ export const WelcomeScreen: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Left Side: Windows XP Logo + Instruction (Switches to italic "Welcome" upon click) */}
             <div
               className="xp-welcome-left"
               style={{
@@ -235,26 +358,23 @@ export const WelcomeScreen: React.FC = () => {
                   >
                     To begin, click your user name
                     <div style={{ fontSize: 11, color: '#dbeafe', fontWeight: 400, marginTop: 3 }}>
-                      Step back into the early-2000s PC era — or explore it for the first time
+                      Now featuring 6 Operating Systems, 3D Brick Maze, BonziBUDDY &amp; 20 Classic Games
                     </div>
                   </div>
                 </>
               )}
             </div>
 
-            {/* Center Vertical Fade Divider */}
             <div
               className="xp-welcome-divider"
               style={{
                 width: 1,
                 height: '66%',
-                background:
-                  'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.68) 50%, transparent 100%)',
+                background: 'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.68) 50%, transparent 100%)',
               }}
             />
 
-            {/* Right Side: Passwordless Clickable User Tile */}
-            <div className="xp-welcome-right" style={{ paddingLeft: 40 }}>
+            <div className="xp-welcome-right" style={{ paddingLeft: 40, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <button
                 type="button"
                 onClick={handleLogin}
@@ -296,7 +416,6 @@ export const WelcomeScreen: React.FC = () => {
                     boxShadow: '0 2px 6px rgba(0,0,0,0.45)',
                     objectFit: 'cover',
                     flexShrink: 0,
-                    transition: 'border-color 0.14s ease',
                   }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -313,32 +432,44 @@ export const WelcomeScreen: React.FC = () => {
                   >
                     {username}
                   </div>
-
                   {loggingIn ? (
                     <div style={{ color: '#cfe2ff', fontSize: 12, fontWeight: 700, marginTop: 4 }}>
                       Loading your personal settings...
                     </div>
                   ) : (
-                    <div
-                      style={{
-                        color: tileActive ? '#ffd97d' : '#dbe8ff',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        marginTop: 3,
-                        opacity: tileActive ? 1 : 0.85,
-                      }}
-                    >
+                    <div style={{ color: tileActive ? '#ffd97d' : '#dbe8ff', fontSize: 11, fontWeight: 600, marginTop: 3 }}>
                       Click to log on
                     </div>
                   )}
                 </div>
               </button>
+
+              {/* Multi-OS Quick Switcher Pills right under login tile */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxWidth: 340 }}>
+                {ALL_OS.map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => switchOperatingSystem(id, false)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      border: osType === id ? '1px solid #ffd452' : '1px solid rgba(255,255,255,0.35)',
+                      background: osType === id ? '#00309c' : 'rgba(0,48,156,0.35)',
+                      color: '#fff',
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {OS_METADATA[id].shortName}
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* Bottom Deep Royal Blue Footer Bar */}
       <div
         style={{
           height: 78,
@@ -398,11 +529,11 @@ export const WelcomeScreen: React.FC = () => {
             </button>
             <div
               className="xp-welcome-footer-note"
-              style={{ color: '#b8cff8', fontSize: 11, maxWidth: 420, textAlign: 'right', lineHeight: 1.35 }}
+              style={{ color: '#b8cff8', fontSize: 11, maxWidth: 460, textAlign: 'right', lineHeight: 1.35 }}
             >
-              <b>TrillXP</b> — Relive the early-2000s PC &amp; Internet era or educate someone who missed it.
+              <b>TrillXP Multi-OS</b> — Windows XP • Windows 10 • Mac OS • Linux • Debian • CentOS
               <br />
-              Includes Classic Slingo, 12 XP Games, PowerShell 1.0, AOL 9.8 &amp; Official Android APK.
+              Includes 3D Brick Maze, BonziBUDDY (Swings &amp; Sings!), 20 Classic Games &amp; Official Android APK.
             </div>
           </>
         )}

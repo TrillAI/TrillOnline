@@ -1,152 +1,229 @@
 import React, { useEffect, useRef } from 'react';
 import { useOS } from '../../context/OSContext';
-import { WindowsXPFlagSVG } from '../apps/aol/AOLGraphics';
+import { Maze3DCanvas } from '../apps/games/Maze3DApp';
 
 export const Screensaver: React.FC = () => {
   const { screensaver, screensaverActive, setScreensaverActive } = useOS();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const flagPosRef = useRef({ x: 200, y: 180, vx: 2.4, vy: 1.9 });
-  const flagElRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!screensaverActive) return;
-
     const dismiss = () => setScreensaverActive(false);
-    const t = window.setTimeout(() => {
-      window.addEventListener('mousemove', dismiss);
-      window.addEventListener('mousedown', dismiss);
-      window.addEventListener('keydown', dismiss);
+    const timer = window.setTimeout(() => {
+      window.addEventListener('mousemove', dismiss, { once: true });
+      window.addEventListener('mousedown', dismiss, { once: true });
+      window.addEventListener('keydown', dismiss, { once: true });
+      window.addEventListener('touchstart', dismiss, { once: true });
     }, 350);
-
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       window.removeEventListener('mousemove', dismiss);
       window.removeEventListener('mousedown', dismiss);
       window.removeEventListener('keydown', dismiss);
+      window.removeEventListener('touchstart', dismiss);
     };
   }, [screensaverActive, setScreensaverActive]);
 
   useEffect(() => {
-    if (!screensaverActive) return;
-
-    if (screensaver === 'xpflag' || screensaver === 'none') {
-      let raf = 0;
-      const tick = () => {
-        const p = flagPosRef.current;
-        const maxX = window.innerWidth - 220;
-        const maxY = window.innerHeight - 130;
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x <= 10 || p.x >= maxX) p.vx *= -1;
-        if (p.y <= 10 || p.y >= maxY) p.vy *= -1;
-        if (flagElRef.current) {
-          flagElRef.current.style.transform = `translate(${p.x}px, ${p.y}px)`;
-        }
-        raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(raf);
-    }
-
+    if (!screensaverActive || screensaver === 'none' || screensaver === 'maze3d') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
 
-    let raf = 0;
-    if (screensaver === 'starfield') {
+    let rafId = 0;
+
+    if (screensaver === 'pipes3d') {
+      // Classic Windows 95/98/XP 3D Metallic Pipes Screensaver!
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const colors = ['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#a855f7', '#06b6d4', '#f97316'];
+      let x = canvas.width / 2;
+      let y = canvas.height / 2;
+      let dir = 0;
+      let color = colors[0];
+      let segments = 0;
+
+      const drawPipes = () => {
+        segments++;
+        if (segments > 420) {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          segments = 0;
+        }
+        const step = 28;
+        const dirs = [
+          [step, 0],
+          [0, step],
+          [-step, 0],
+          [0, -step],
+        ];
+        if (Math.random() < 0.35) {
+          const nextDir = (dir + (Math.random() < 0.5 ? 1 : 3)) % 4;
+          // Draw metallic ball joint
+          const g = ctx.createRadialGradient(x - 4, y - 4, 2, x, y, 13);
+          g.addColorStop(0, '#ffffff');
+          g.addColorStop(0.35, color);
+          g.addColorStop(1, '#0f172a');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, 12, 0, Math.PI * 2);
+          ctx.fill();
+          dir = nextDir;
+        }
+        const [dx, dy] = dirs[dir];
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 30 || nx > canvas.width - 30 || ny < 30 || ny > canvas.height - 30) {
+          x = 80 + Math.random() * (canvas.width - 160);
+          y = 80 + Math.random() * (canvas.height - 160);
+          color = colors[Math.floor(Math.random() * colors.length)];
+        } else {
+          // Shaded 3D cylinder pipe segment
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = '#0f172a';
+          ctx.lineWidth = 18;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(nx, ny);
+          ctx.stroke();
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 14;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(nx, ny);
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(x - (dy !== 0 ? 3 : 0), y - (dx !== 0 ? 3 : 0));
+          ctx.lineTo(nx - (dy !== 0 ? 3 : 0), ny - (dx !== 0 ? 3 : 0));
+          ctx.stroke();
+
+          x = nx;
+          y = ny;
+        }
+        rafId = requestAnimationFrame(drawPipes);
+      };
+      drawPipes();
+    } else if (screensaver === 'starfield') {
       const stars = Array.from({ length: 240 }, () => ({
-        x: (Math.random() - 0.5) * canvas.width * 2,
-        y: (Math.random() - 0.5) * canvas.height * 2,
-        z: Math.random() * canvas.width,
+        x: (Math.random() - 0.5) * 1600,
+        y: (Math.random() - 0.5) * 1200,
+        z: Math.random() * 1000 + 20,
       }));
       const draw = () => {
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        stars.forEach((s) => {
-          s.z -= 7;
-          if (s.z <= 1) {
-            s.x = (Math.random() - 0.5) * canvas.width * 2;
-            s.y = (Math.random() - 0.5) * canvas.height * 2;
-            s.z = canvas.width;
+        for (const s of stars) {
+          s.z -= 7.5;
+          if (s.z <= 2) {
+            s.x = (Math.random() - 0.5) * 1600;
+            s.y = (Math.random() - 0.5) * 1200;
+            s.z = 1000;
           }
-          const sx = (s.x / s.z) * 320 + cx;
-          const sy = (s.y / s.z) * 320 + cy;
-          const size = Math.max(0.8, (1 - s.z / canvas.width) * 3.8);
-          ctx.fillStyle = '#fff';
+          const sx = cx + (s.x / s.z) * 420;
+          const sy = cy + (s.y / s.z) * 420;
+          const size = Math.max(1, (1 - s.z / 1000) * 3.8);
+          const bright = Math.round((1 - s.z / 1000) * 255);
+          ctx.fillStyle = `rgb(${bright},${bright},${Math.min(255, bright + 30)})`;
           ctx.fillRect(sx, sy, size, size);
-        });
-        raf = requestAnimationFrame(draw);
+        }
+        rafId = requestAnimationFrame(draw);
       };
-      raf = requestAnimationFrame(draw);
+      draw();
     } else if (screensaver === 'mystify') {
-      const pts = Array.from({ length: 4 }, () => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 7,
-        vy: (Math.random() - 0.5) * 7,
+      const pts = Array.from({ length: 4 }, (_, i) => ({
+        x: 150 + i * 160,
+        y: 120 + i * 90,
+        vx: (i % 2 === 0 ? 1 : -1) * (3.2 + i * 0.5),
+        vy: (i < 2 ? 1 : -1) * (2.6 + i * 0.4),
       }));
-      let hue = 190;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let hue = 195;
       const draw = () => {
-        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.09)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        pts.forEach((p) => {
+        for (const p of pts) {
           p.x += p.vx;
           p.y += p.vy;
           if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
           if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-        });
-        hue = (hue + 0.6) % 360;
+        }
+        hue = (hue + 0.7) % 360;
         ctx.strokeStyle = `hsl(${hue}, 90%, 60%)`;
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
-        pts.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.closePath();
         ctx.stroke();
-        raf = requestAnimationFrame(draw);
+        rafId = requestAnimationFrame(draw);
       };
-      raf = requestAnimationFrame(draw);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      draw();
+    } else if (screensaver === 'xpflag') {
+      let fx = 160;
+      let fy = 140;
+      let vx = 2.4;
+      let vy = 1.9;
+      const draw = () => {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        fx += vx;
+        fy += vy;
+        if (fx < 30 || fx > canvas.width - 210) vx *= -1;
+        if (fy < 30 || fy > canvas.height - 140) vy *= -1;
+
+        ctx.fillStyle = '#f25022';
+        ctx.fillRect(fx, fy, 42, 34);
+        ctx.fillStyle = '#7fba00';
+        ctx.fillRect(fx + 48, fy, 42, 34);
+        ctx.fillStyle = '#00a4ef';
+        ctx.fillRect(fx, fy + 40, 42, 34);
+        ctx.fillStyle = '#ffb900';
+        ctx.fillRect(fx + 48, fy + 40, 42, 34);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px Tahoma, sans-serif';
+        ctx.fillText('TrillXP Multi-OS', fx - 24, fy + 102);
+        rafId = requestAnimationFrame(draw);
+      };
+      draw();
     }
 
-    return () => cancelAnimationFrame(raf);
-  }, [screensaver, screensaverActive]);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resize);
+    };
+  }, [screensaverActive, screensaver]);
 
-  if (!screensaverActive) return null;
+  if (!screensaverActive || screensaver === 'none') return null;
 
   return (
     <div
-      onClick={() => setScreensaverActive(false)}
       style={{
         position: 'fixed',
         inset: 0,
+        zIndex: 99990,
         background: '#000',
-        zIndex: 95000,
         cursor: 'none',
       }}
+      onClick={() => setScreensaverActive(false)}
     >
-      {screensaver === 'xpflag' || screensaver === 'none' ? (
-        <div
-          ref={flagElRef}
-          style={{
-            position: 'absolute',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <WindowsXPFlagSVG size={72} />
-          <div style={{ color: '#fff', fontWeight: 700, fontSize: 24, marginTop: 4 }}>
-            Windows<sup style={{ color: '#ff7324', fontSize: 12 }}>xp</sup>
-          </div>
-        </div>
+      {screensaver === 'maze3d' ? (
+        <Maze3DCanvas autoPlay={true} skin="brick" cellsSize={11} showMinimap={false} />
       ) : (
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
       )}

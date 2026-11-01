@@ -18,8 +18,104 @@ import {
 } from '../services/persistentStorage';
 
 export type BootPhase = 'black' | 'bios' | 'booting' | 'welcome' | 'desktop' | 'shutting_down' | 'powered_off';
+export type OSType = 'winxp' | 'win10' | 'macos' | 'linux' | 'debian' | 'centos';
+export type CompanionType = 'bonzi' | 'clippy' | 'peedy' | 'rover' | 'merlin';
+export interface CompanionCommand {
+  kind: 'speak' | 'sing' | 'joke' | 'swing';
+  text?: string;
+  songId?: string;
+  nonce: number;
+}
 export type XPTheme = 'blue' | 'olive' | 'silver' | 'royale' | 'zune';
-export type ScreensaverType = 'none' | 'starfield' | 'xpflag' | 'mystify';
+export type ScreensaverType = 'maze3d' | 'pipes3d' | 'starfield' | 'xpflag' | 'mystify' | 'none';
+
+export interface OSMetadataInfo {
+  id: OSType;
+  name: string;
+  shortName: string;
+  icon: string;
+  defaultWallpaper: string;
+  kernel: string;
+  year: string;
+  accent: string;
+  family: 'windows' | 'mac' | 'linux';
+  tagline: string;
+}
+
+export const OS_METADATA: Record<OSType, OSMetadataInfo> = {
+  winxp: {
+    id: 'winxp',
+    name: 'Microsoft Windows XP Professional (SP3)',
+    shortName: 'Windows XP',
+    icon: '/icons/os-winxp.svg',
+    defaultWallpaper: '/wallpapers/bliss.jpg',
+    kernel: 'NT 5.1.2600 Service Pack 3',
+    year: '2001',
+    accent: '#245edb',
+    family: 'windows',
+    tagline: 'Luna Blue/Olive/Silver, Start Menu, Classic Games, AOL 9.8 & PowerShell 1.0',
+  },
+  win10: {
+    id: 'win10',
+    name: 'Microsoft Windows 10 Pro (22H2)',
+    shortName: 'Windows 10',
+    icon: '/icons/os-win10.svg',
+    defaultWallpaper: '/wallpapers/win10-hero.svg',
+    kernel: 'NT 10.0.19045.5131',
+    year: '2015',
+    accent: '#0078d4',
+    family: 'windows',
+    tagline: 'Fluent Acrylic Taskbar, Live-Tile Start Menu, Search Bar & Segoe Window Chrome',
+  },
+  macos: {
+    id: 'macos',
+    name: 'Mac OS X / macOS Aqua Desktop',
+    shortName: 'Mac OS',
+    icon: '/icons/os-macos.svg',
+    defaultWallpaper: '/wallpapers/macos-aqua.svg',
+    kernel: 'Darwin 21.6.0 XNU',
+    year: '2001–2022',
+    accent: '#3b82f6',
+    family: 'mac',
+    tagline: 'Top Apple Menu Bar, Traffic-Light Window Controls, Magnifying Glass Dock & Zsh',
+  },
+  linux: {
+    id: 'linux',
+    name: 'GNU/Linux Tux Desktop (Mint / Cinnamon)',
+    shortName: 'Linux',
+    icon: '/icons/os-linux.svg',
+    defaultWallpaper: '/wallpapers/linux-tux.svg',
+    kernel: '6.6.58-tux-generic x86_64',
+    year: '1991–Present',
+    accent: '#10b981',
+    family: 'linux',
+    tagline: 'Tux Kernel Boot, Arc-Dark Panel, Bash Shell, Neofetch & Open-Source Desktop',
+  },
+  debian: {
+    id: 'debian',
+    name: 'Debian GNU/Linux 12 ("Bookworm")',
+    shortName: 'Debian',
+    icon: '/icons/os-debian.svg',
+    defaultWallpaper: '/wallpapers/debian-bookworm.svg',
+    kernel: '6.1.0-27-amd64 #1 SMP Debian',
+    year: '1993–Present',
+    accent: '#d70a53',
+    family: 'linux',
+    tagline: 'The Universal Operating System — GNOME Activities Top Bar, Dash Dock & APT',
+  },
+  centos: {
+    id: 'centos',
+    name: 'CentOS Linux 7 / Stream (GNOME Classic)',
+    shortName: 'CentOS',
+    icon: '/icons/os-centos.svg',
+    defaultWallpaper: '/wallpapers/centos-stream.svg',
+    kernel: '3.10.0-1160.119.1.el7.x86_64',
+    year: '2004–Present',
+    accent: '#932279',
+    family: 'linux',
+    tagline: 'Enterprise RHEL-Compatible Workstation — Applications/Places Panel, Workspaces & YUM/DNF',
+  },
+};
 
 export type BuiltinAppId =
   | 'explorer'
@@ -41,6 +137,22 @@ export type BuiltinAppId =
   | 'mahjong'
   | 'checkers'
   | 'tetris'
+  | 'maze3d'
+  | 'oregon-trail'
+  | 'chips-challenge'
+  | 'rodents-revenge'
+  | 'pipe-dream'
+  | 'purble-place'
+  | 'snake'
+  | 'breakout'
+  | 'gorillas'
+  | 'pacman'
+  | 'frogger'
+  | 'pong'
+  | 'games-vault'
+  | 'os-switcher'
+  | 'unix-terminal'
+  | 'companions'
   | 'arena-ai'
   | 'windows-update'
   | 'notepad'
@@ -175,10 +287,10 @@ export const INSTALLABLE_CATALOG: InstallablePackage[] = [
     publisher: 'BONZI.COM Software',
     installerFile: 'bonzibuddy_setup.exe',
     sizeMB: 2.5,
-    icon: '/userpics/frog.bmp',
+    icon: '/icons/bonzi.svg',
     category: 'Games & Fun',
     description:
-      'Interactive nostalgic desktop buddy who hangs out on your XP desktop telling corny 2000s jokes, facts, and speaking aloud!',
+      'Authentic purple gorilla/monkey buddy who swings down onto your desktop from a jungle web/vine, talks with lip-sync, tells corny 2000s jokes, and sings classic melodies!',
   },
   {
     id: 'pkg-hypercam',
@@ -252,6 +364,9 @@ interface OSContextValue {
   loginToDesktop: () => void;
   triggerShutdown: (mode: 'shutdown' | 'restart' | 'logoff') => void;
 
+  osType: OSType;
+  switchOperatingSystem: (nextOs: OSType, withBootSequence?: boolean) => void;
+
   username: string;
   setUsername: (name: string) => void;
   userAvatar: string;
@@ -303,6 +418,12 @@ interface OSContextValue {
   setHypercamOverlay: (v: boolean) => void;
   bonziOverlay: boolean;
   setBonziOverlay: (v: boolean) => void;
+  activeCompanion: CompanionType;
+  setActiveCompanion: (c: CompanionType) => void;
+  bonziSwingNonce: number;
+  triggerBonziSwing: (companion?: CompanionType) => void;
+  companionCommand: CompanionCommand | null;
+  dispatchCompanionCommand: (cmd: Omit<CompanionCommand, 'nonce'>) => void;
 
   aolConnected: boolean;
   aolScreenName: string;
@@ -481,6 +602,15 @@ const DEFAULT_DESKTOP_ICONS: DesktopIconItem[] = [
   { id: 'di-apk', label: 'Get TrillXP.apk', icon: '/icons/android-apk.svg', appId: 'apk-installer', gridCol: 3, gridRow: 1 },
   { id: 'di-jezzball', label: 'JezzBall XP', icon: '/icons/jezzball.svg', appId: 'jezzball', gridCol: 3, gridRow: 2 },
   { id: 'di-mahjong', label: 'Mahjong Titans', icon: '/icons/mahjong.svg', appId: 'mahjong', gridCol: 3, gridRow: 3 },
+  { id: 'di-os-switcher', label: 'Switch OS (6 OS)', icon: '/icons/os-switcher.svg', appId: 'os-switcher', gridCol: 3, gridRow: 4 },
+  { id: 'di-bonzi', label: 'BonziBUDDY', icon: '/icons/bonzi.svg', appId: 'companions', gridCol: 3, gridRow: 5 },
+
+  { id: 'di-maze3d', label: '3D Brick Maze', icon: '/icons/maze3d.svg', appId: 'maze3d', gridCol: 4, gridRow: 0 },
+  { id: 'di-games-vault', label: 'All 24 Classic Games', icon: '/icons/luna48/gamepad.png', appId: 'games-vault', gridCol: 4, gridRow: 1 },
+  { id: 'di-oregon', label: 'Oregon Trail', icon: '/icons/oregon-trail.svg', appId: 'oregon-trail', gridCol: 4, gridRow: 2 },
+  { id: 'di-chips', label: "Chip's Challenge", icon: '/icons/chips-challenge.svg', appId: 'chips-challenge', gridCol: 4, gridRow: 3 },
+  { id: 'di-rodent', label: "Rodent's Revenge", icon: '/icons/rodents-revenge.svg', appId: 'rodents-revenge', gridCol: 4, gridRow: 4 },
+  { id: 'di-unix-term', label: 'Bash / Zsh Shell', icon: '/icons/terminal-unix.svg', appId: 'unix-terminal', gridCol: 4, gridRow: 5 },
 ];
 
 const APP_DEFAULTS: Record<string, { title: string; icon: string; w: number; h: number; minW?: number; minH?: number; resizable?: boolean }> = {
@@ -503,6 +633,22 @@ const APP_DEFAULTS: Record<string, { title: string; icon: string; w: number; h: 
   mahjong: { title: 'Mahjong Titans — Dragon Solitaire', icon: '/icons/mahjong.svg', w: 640, h: 495, minW: 500, minH: 400 },
   checkers: { title: 'MSN Gaming Zone — Internet Checkers', icon: '/icons/checkers.svg', w: 620, h: 465, minW: 520, minH: 400 },
   tetris: { title: 'Tetris XP — Entertainment Pack', icon: '/icons/tetris.svg', w: 460, h: 495, minW: 410, minH: 450 },
+  maze3d: { title: '3D Brick Maze — Windows 95 Classic (Playable + Auto-Screensaver)', icon: '/icons/maze3d.svg', w: 740, h: 530, minW: 520, minH: 390 },
+  'oregon-trail': { title: 'The Oregon Trail — School Computer Lab Edition (1848)', icon: '/icons/oregon-trail.svg', w: 720, h: 525, minW: 540, minH: 400 },
+  'chips-challenge': { title: "Chip's Challenge — Microsoft Entertainment Pack", icon: '/icons/chips-challenge.svg', w: 660, h: 520, minW: 500, minH: 400 },
+  'rodents-revenge': { title: "Rodent's Revenge — Microsoft Entertainment Pack", icon: '/icons/rodents-revenge.svg', w: 610, h: 520, minW: 480, minH: 400 },
+  'pipe-dream': { title: 'Pipe Dream — Windows Entertainment Pack', icon: '/icons/pipe-dream.svg', w: 640, h: 515, minW: 500, minH: 400 },
+  'purble-place': { title: 'Purble Place — Comfy Cakes & Purble Pairs', icon: '/icons/purble-place.svg', w: 700, h: 520, minW: 520, minH: 400 },
+  snake: { title: 'QBasic Nibbles & Nokia 3310 Snake', icon: '/icons/nibbles.svg', w: 580, h: 490, minW: 440, minH: 380 },
+  breakout: { title: 'DX-Ball — Retro Brick Breaker', icon: '/icons/dxball.svg', w: 640, h: 500, minW: 480, minH: 380 },
+  gorillas: { title: 'MS-DOS QBasic GORILLA.BAS — Exploding Bananas (1991)', icon: '/icons/bonzi.svg', w: 680, h: 510, minW: 520, minH: 410 },
+  pacman: { title: 'Pac-Chomp Classic Arcade Maze', icon: '/icons/luna32/gamepad.png', w: 560, h: 525, minW: 440, minH: 430 },
+  frogger: { title: 'Classic Highway & River Frogger', icon: '/icons/luna32/gamepad.png', w: 560, h: 520, minW: 440, minH: 420 },
+  pong: { title: '1972 Classic Pong — Player vs CPU', icon: '/icons/luna32/gamepad.png', w: 600, h: 460, minW: 460, minH: 360 },
+  'games-vault': { title: 'Classic Old PC Games Vault — All 24 Playable Titles', icon: '/icons/luna32/gamepad.png', w: 800, h: 555, minW: 560, minH: 420 },
+  'os-switcher': { title: 'Multi-OS Boot Manager — XP · Win10 · Mac OS · Linux · Debian · CentOS', icon: '/icons/os-switcher.svg', w: 780, h: 540, minW: 560, minH: 420 },
+  'unix-terminal': { title: 'Unix Terminal — bash / zsh', icon: '/icons/terminal-unix.svg', w: 700, h: 450, minW: 440, minH: 260 },
+  companions: { title: 'BonziBUDDY & Classic Desktop Companions', icon: '/icons/bonzi.svg', w: 680, h: 510, minW: 500, minH: 390 },
   'arena-ai': { title: 'Arena AI Agent — TrillXP Copilot & Studio', icon: '/icons/arena-ai.svg', w: 960, h: 620, minW: 640, minH: 440 },
   'windows-update': { title: 'Microsoft Windows Update', icon: '/icons/luna16/secure_warn.png', w: 760, h: 530, minW: 560, minH: 400 },
   notepad: { title: 'Untitled - Notepad', icon: '/icons/327(16x16).png', w: 560, h: 400, minW: 320, minH: 220 },
@@ -529,7 +675,7 @@ const APP_DEFAULTS: Record<string, { title: string; icon: string; w: number; h: 
   mirc: { title: 'mIRC 6.16 - [#windowsxp]', icon: '/icons/luna32/people.png', w: 660, h: 450, minW: 480, minH: 320 },
   'code-studio': { title: 'XP Web & Script Studio', icon: '/icons/luna32/file_html.png', w: 780, h: 520, minW: 560, minH: 380 },
   limewire: { title: 'LimeWire PRO 4.18.8 (Safe Simulator)', icon: '/icons/luna32/net_upload.png', w: 680, h: 460, minW: 520, minH: 360 },
-  bonzibuddy: { title: 'BonziBUDDY Settings', icon: '/userpics/frog.bmp', w: 380, h: 300, minW: 340, minH: 260 },
+  bonzibuddy: { title: 'BonziBUDDY & Classic Desktop Companions', icon: '/icons/bonzi.svg', w: 680, h: 510, minW: 500, minH: 390 },
   hypercam: { title: 'HyperCam 2', icon: '/icons/luna32/camcorder.png', w: 400, h: 330, minW: 360, minH: 300 },
 };
 
@@ -540,10 +686,12 @@ function mergeRequiredSystemNodes(existing: VFSNode[]): VFSNode[] {
 }
 
 function mergeRequiredDesktopIcons(existing: DesktopIconItem[]): DesktopIconItem[] {
-  // Always refresh Slingo's updated Joker SVG icon & ensure core TrillXP icons appear!
-  const refreshed = existing.map((ic) =>
-    ic.id === 'di-slingo' ? { ...ic, icon: '/icons/slingo.svg' } : ic
-  );
+  // Refresh updated custom SVG icons & ensure new Multi-OS, Bonzi, 3D Maze & Retro Game icons appear!
+  const refreshed = existing.map((ic) => {
+    if (ic.id === 'di-slingo') return { ...ic, icon: '/icons/slingo.svg' };
+    if (ic.id === 'di-bonzi') return { ...ic, icon: '/icons/bonzi.svg' };
+    return ic;
+  });
   const existingIds = new Set(refreshed.map((i) => i.id));
   const mustHave = DEFAULT_DESKTOP_ICONS.filter(
     (d) =>
@@ -558,6 +706,14 @@ function mergeRequiredDesktopIcons(existing: DesktopIconItem[]): DesktopIconItem
         'di-skifree',
         'di-jezzball',
         'di-mahjong',
+        'di-os-switcher',
+        'di-bonzi',
+        'di-maze3d',
+        'di-games-vault',
+        'di-oregon',
+        'di-chips',
+        'di-rodent',
+        'di-unix-term',
       ].includes(d.id) && !existingIds.has(d.id)
   );
   if (mustHave.length === 0) return refreshed;
@@ -591,6 +747,7 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [bootPhase, setBootPhase] = useState<BootPhase>('black');
   const startupPlayedOnBootRef = useRef<boolean>(false);
   const idbHydratedRef = useRef<boolean>(false);
+  const osSwitchedManuallyRef = useRef<boolean>(false);
 
   useEffect(() => {
     void requestPersistentQuota();
@@ -606,12 +763,13 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, [bootPhase, playSound]);
 
+  const [osType, setOsTypeState] = useState<OSType>(() => loadLocalFast('xp_ostype_v1', 'winxp'));
   const [username, setUsernameState] = useState<string>(() => loadLocalFast('xp_username', 'Administrator'));
   const [userAvatar, setUserAvatarState] = useState<string>(() => loadLocalFast('xp_avatar', '/userpics/chess.bmp'));
   const [theme, setThemeState] = useState<XPTheme>(() => loadLocalFast('xp_theme', 'blue'));
   const [wallpaper, setWallpaperState] = useState<string>(() => loadLocalFast('xp_wallpaper', '/wallpapers/bliss.jpg'));
   const [screensaver, setScreensaverState] = useState<ScreensaverType>(() =>
-    loadLocalFast('xp_screensaver', 'starfield')
+    loadLocalFast('xp_screensaver', 'maze3d')
   );
   const [screensaverActive, setScreensaverActive] = useState(false);
 
@@ -649,7 +807,7 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       if (idbIcons && idbIcons.length > 0) setDesktopIcons(mergeRequiredDesktopIcons(idbIcons));
       if (idbPkgs) setInstalledPackages(idbPkgs);
       if (idbUpdates) setInstalledUpdates(idbUpdates);
-      if (idbWall) setWallpaperState(idbWall);
+      if (idbWall && !osSwitchedManuallyRef.current) setWallpaperState(idbWall);
       idbHydratedRef.current = true;
     })();
     return () => {
@@ -662,7 +820,51 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [zCounter, setZCounter] = useState(100);
 
   const [hypercamOverlay, setHypercamOverlay] = useState(false);
-  const [bonziOverlay, setBonziOverlay] = useState(false);
+  const [bonziOverlay, setBonziOverlay] = useState<boolean>(() => loadLocalFast('xp_bonzi_visible_v1', true));
+  const [activeCompanion, setActiveCompanionState] = useState<CompanionType>(() =>
+    loadLocalFast('xp_active_companion_v1', 'bonzi')
+  );
+  const [bonziSwingNonce, setBonziSwingNonce] = useState<number>(1);
+  const [companionCommand, setCompanionCommand] = useState<CompanionCommand | null>(null);
+
+  const setActiveCompanion = useCallback((c: CompanionType) => {
+    setActiveCompanionState(c);
+    setBonziOverlay(true);
+    if (c === 'bonzi') {
+      setBonziSwingNonce((n) => n + 1);
+    }
+  }, []);
+
+  const triggerBonziSwing = useCallback((comp?: CompanionType) => {
+    if (comp) setActiveCompanionState(comp);
+    setBonziOverlay(true);
+    setBonziSwingNonce((n) => n + 1);
+  }, []);
+
+  const dispatchCompanionCommand = useCallback((cmd: Omit<CompanionCommand, 'nonce'>) => {
+    setBonziOverlay(true);
+    if (cmd.kind === 'swing') {
+      setActiveCompanionState('bonzi');
+      setBonziSwingNonce((n) => n + 1);
+    }
+    setCompanionCommand({ ...cmd, nonce: Date.now() + Math.random() });
+  }, []);
+
+  const switchOperatingSystem = useCallback(
+    (nextOs: OSType, withBootSequence = false) => {
+      osSwitchedManuallyRef.current = true;
+      setOsTypeState(nextOs);
+      setWallpaperState(OS_METADATA[nextOs].defaultWallpaper);
+      if (withBootSequence) {
+        setWindows([]);
+        setActiveWindowId(null);
+        setBootPhase('booting');
+      } else {
+        playSound('hardwareInsert');
+      }
+    },
+    [playSound]
+  );
 
   const [aolConnected, setAolConnected] = useState(false);
   const [aolScreenName, setAolScreenName] = useState<string>(() =>
@@ -682,6 +884,9 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [balloon, setBalloon] = useState<BalloonNotification | null>(null);
 
   // Persist OS changes safely to IndexedDB + localStorage
+  useEffect(() => persistHybrid('xp_ostype_v1', osType), [osType]);
+  useEffect(() => persistHybrid('xp_bonzi_visible_v1', bonziOverlay), [bonziOverlay]);
+  useEffect(() => persistHybrid('xp_active_companion_v1', activeCompanion), [activeCompanion]);
   useEffect(() => persistHybrid('xp_username', username), [username]);
   useEffect(() => persistHybrid('xp_avatar', userAvatar), [userAvatar]);
   useEffect(() => persistHybrid('xp_theme', theme), [theme]);
@@ -775,8 +980,9 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   const openApp = useCallback(
     (appId: BuiltinAppId, payload?: Record<string, unknown>): string => {
-      if (appId === 'bonzibuddy') {
+      if (appId === 'bonzibuddy' || appId === 'companions') {
         setBonziOverlay(true);
+        setBonziSwingNonce((n) => n + 1);
       }
       if (appId === 'hypercam') {
         setHypercamOverlay(true);
@@ -1341,6 +1547,8 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         setBootPhase,
         loginToDesktop,
         triggerShutdown,
+        osType,
+        switchOperatingSystem,
         username,
         setUsername,
         userAvatar,
@@ -1386,6 +1594,12 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         setHypercamOverlay,
         bonziOverlay,
         setBonziOverlay,
+        activeCompanion,
+        setActiveCompanion,
+        bonziSwingNonce,
+        triggerBonziSwing,
+        companionCommand,
+        dispatchCompanionCommand,
         aolConnected,
         aolScreenName,
         setAolScreenName,
