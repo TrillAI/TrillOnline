@@ -466,10 +466,13 @@ export const TrillXPApkApp: React.FC = () => {
   const { playSound } = useSound();
   const [downloaded, setDownloaded] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const isNativeAndroidApp =
+    typeof window !== 'undefined' && window.location.hostname === 'trillxp.local';
 
   const handleDownloadApk = () => {
     playSound('hardwareInsert');
     setDownloaded(true);
+    if (isNativeAndroidApp) return;
     const link = document.createElement('a');
     link.href = '/downloads/TrillXP.apk';
     link.download = 'TrillXP.apk';
@@ -497,9 +500,9 @@ export const TrillXPApkApp: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="/icons/android-apk.svg" alt="TrillXP APK" style={{ width: 46, height: 46 }} />
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>TrillXP for Android — Official Signed APK</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>TrillXP for Android — Official Signed APK (v1.1.0)</div>
             <div style={{ color: '#dcfce7', fontSize: 11 }}>
-              Carry the 2000s PC Time Machine in your pocket • Package: <b>ai.trill.trillxp</b> (v1.0.0)
+              Full Self-Contained Offline Windows XP OS • Package: <b>ai.trill.trillxp</b> (v1.1.0)
             </div>
           </div>
         </div>
@@ -523,7 +526,21 @@ export const TrillXPApkApp: React.FC = () => {
       </div>
 
       <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {downloaded && (
+        {isNativeAndroidApp && (
+          <div
+            style={{
+              background: '#dcfce7',
+              border: '2px solid #16a34a',
+              borderRadius: 6,
+              padding: '10px 12px',
+              color: '#14532d',
+              fontWeight: 800,
+            }}
+          >
+            ✅ You are currently running natively inside the official TrillXP Android App (<b>ai.trill.trillxp</b> v1.1.0)!
+          </div>
+        )}
+        {downloaded && !isNativeAndroidApp && (
           <div
             style={{
               background: '#dcfce7',
@@ -583,7 +600,9 @@ export const TrillXPApkApp: React.FC = () => {
               <li>
                 Click <b>Download TrillXP.apk</b> above (or visit <code>/downloads/TrillXP.apk</code> on your phone).
               </li>
-              <li>Open the downloaded <b>TrillXP.apk</b> on your Android phone or tablet.</li>
+              <li>
+                Open the downloaded <b>TrillXP.apk</b> on your Android phone or tablet (if upgrading from v1.0.0, uninstall the old app first, then tap <b>Install</b>).
+              </li>
               <li>If prompted, allow <i>Install from this browser</i> and tap <b>Install</b>.</li>
               <li>
                 Or install over USB ADB:{' '}

@@ -19,13 +19,24 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build Signed TrillXP.apk (V1 JAR + APK Signature Scheme v2)
+      - name: Set up Node.js & Java 17
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build & Sign Full Offline TrillXP.apk (ecj + dx + aapt2 + V1/V2 Signing)
         run: python3 scripts/build_trillxp_apk.py
 
-      - name: Verify Binary AndroidManifest.xml & APK Signature Scheme v2
+      - name: Verify Binary AndroidManifest.xml, DEX Bytecode & APK Signature Scheme v2
         run: |
-          pip install pyaxmlparser apksigtool
-          python3 -c "from pyaxmlparser import APK; a = APK('public/downloads/TrillXP.apk'); assert a.package == 'ai.trill.trillxp' and a.is_valid_APK(), 'Invalid APK'"
+          pip install androguard pyaxmlparser apksigtool
+          python3 -c "from androguard.core.apk import APK; from androguard.core.dex import DEX; a = APK('public/downloads/TrillXP.apk'); assert a.get_package() == 'ai.trill.trillxp' and a.is_valid_APK(); d = DEX(a.get_dex()); assert len(d.get_classes()) >= 2"
           python3 -m apksigtool verify public/downloads/TrillXP.apk
 
       - name: Upload TrillXP.apk Artifact
