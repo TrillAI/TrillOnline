@@ -156,6 +156,11 @@ export const Desktop: React.FC<{ children?: React.ReactNode }> = ({ children }) 
             }}
             onMouseDown={(e) => handleIconMouseDown(e, ic.id, ic.gridCol, ic.gridRow)}
             onDoubleClick={() => openApp(ic.appId, ic.payload)}
+            onPointerUp={(e) => {
+              if (e.pointerType === 'touch') {
+                openApp(ic.appId, ic.payload);
+              }
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();

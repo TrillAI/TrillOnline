@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect x="4" y="4" width="40" height="40" rx="9" fill="#14532d" stroke="#4ade80" stroke-width="2"/>
+  <line x1="17" y1="13" x2="13" y2="8" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+  <line x1="31" y1="13" x2="35" y2="8" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+  <path d="M13 24 A11 11 0 0 1 35 24 Z" fill="#4ade80"/>
+  <circle cx="19" cy="19" r="1.6" fill="#052e16"/>
+  <circle cx="29" cy="19" r="1.6" fill="#052e16"/>
+  <rect x="13" y="26" width="22" height="13" rx="3" fill="#4ade80"/>
+  <text x="24" y="35.5" text-anchor="middle" font-size="8.5" font-weight="900" fill="#052e16" font-family="Arial Black, sans-serif">APK</text>
+</svg>

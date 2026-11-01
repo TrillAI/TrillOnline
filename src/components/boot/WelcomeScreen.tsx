@@ -208,7 +208,7 @@ export const WelcomeScreen: React.FC = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                     <WindowsXPFlagSVG size={64} />
                     <div style={{ marginTop: 2, textAlign: 'right' }}>
-                      <div style={{ color: '#fff', fontSize: 11, opacity: 0.92 }}>Microsoft®</div>
+                      <div style={{ color: '#fff', fontSize: 11, opacity: 0.92 }}>Microsoft® Windows®</div>
                       <div
                         style={{
                           color: '#fff',
@@ -219,7 +219,7 @@ export const WelcomeScreen: React.FC = () => {
                           textShadow: '1px 2px 3px rgba(0, 22, 85, 0.45)',
                         }}
                       >
-                        Windows<sup style={{ color: '#ff7324', fontSize: 17, marginLeft: 2 }}>xp</sup>
+                        Trill<sup style={{ color: '#ff7324', fontSize: 18, marginLeft: 2 }}>xp</sup>
                       </div>
                     </div>
                   </div>
@@ -234,6 +234,9 @@ export const WelcomeScreen: React.FC = () => {
                     }}
                   >
                     To begin, click your user name
+                    <div style={{ fontSize: 11, color: '#dbeafe', fontWeight: 400, marginTop: 3 }}>
+                      Step back into the early-2000s PC era — or explore it for the first time
+                    </div>
                   </div>
                 </>
               )}
@@ -395,11 +398,11 @@ export const WelcomeScreen: React.FC = () => {
             </button>
             <div
               className="xp-welcome-footer-note"
-              style={{ color: '#b8cff8', fontSize: 11, maxWidth: 360, textAlign: 'right', lineHeight: 1.35 }}
+              style={{ color: '#b8cff8', fontSize: 11, maxWidth: 420, textAlign: 'right', lineHeight: 1.35 }}
             >
-              After you log on, you can add or change accounts.
+              <b>TrillXP</b> — Relive the early-2000s PC &amp; Internet era or educate someone who missed it.
               <br />
-              Just go to Control Panel and click User Accounts.
+              Includes Classic Slingo, 12 XP Games, PowerShell 1.0, AOL 9.8 &amp; Official Android APK.
             </div>
           </>
         )}

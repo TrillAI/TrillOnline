@@ -36,13 +36,24 @@ export type BuiltinAppId =
   | 'freecell'
   | 'hearts'
   | 'slingo'
+  | 'skifree'
+  | 'jezzball'
+  | 'mahjong'
+  | 'checkers'
+  | 'tetris'
   | 'arena-ai'
   | 'windows-update'
   | 'notepad'
+  | 'wordpad'
   | 'paint'
   | 'wmplayer'
   | 'calculator'
   | 'cmd'
+  | 'powershell'
+  | 'regedit'
+  | 'winver'
+  | 'trillxp-museum'
+  | 'apk-installer'
   | 'taskmgr'
   | 'control-panel'
   | 'software-center'
@@ -335,33 +346,44 @@ const REQUIRED_SYSTEM_NODES: VFSNode[] = [
   { id: 'arena-projects', name: 'Arena AI Projects', type: 'folder', parentId: 'my-docs', icon: '/icons/arena-ai.svg', modifiedAt: '2026-11-01' },
   { id: 'saved-web', name: 'Saved Web Pages', type: 'folder', parentId: 'my-docs', icon: '/icons/luna48/file_html.png', modifiedAt: '2026-11-01' },
   { id: 'shared-dl', name: 'Downloads & Installers', type: 'folder', parentId: 'my-docs', icon: '/icons/luna48/folder_shared.png', modifiedAt: '2026-11-01' },
+  {
+    id: 'dl-trillxp-apk',
+    name: 'TrillXP.apk',
+    type: 'shortcut',
+    parentId: 'shared-dl',
+    icon: '/icons/android-apk.svg',
+    targetAppId: 'apk-installer',
+    sizeBytes: 13937213,
+    modifiedAt: '2026-11-01',
+  },
 ];
 
 const DEFAULT_VFS: VFSNode[] = [
   ...REQUIRED_SYSTEM_NODES,
   {
     id: 'welcome-txt',
-    name: 'Welcome to Windows XP.txt',
+    name: 'Welcome to TrillXP.txt',
     type: 'file',
     parentId: 'my-docs',
     mime: 'text/plain',
-    sizeBytes: 820,
+    sizeBytes: 980,
     modifiedAt: '2026-11-01',
-    content: `Microsoft Windows XP Professional (Service Pack 3)
-====================================================
-Welcome to your persistent browser-based Windows XP OS!
+    content: `TrillXP — Interactive Windows XP Time Machine & 2000s PC Museum
+================================================================
+Purpose: Relive the early-2000s PC & Internet era firsthand — or educate
+anyone who missed 56K Dial-Up, AOL CDs, AIM, Classic Slingo & Windows XP!
 
 Featured Highlights:
-1. Arena AI Agent (Built into the OS + https://arena.ai/agent in IE6):
-   - Run autonomous multi-step coding & OS tasks
-   - Generate HD .PNG Images -> saved to My Documents\\My Pictures\\Arena AI
-   - Generate Real Playable .WEBM Videos -> saved to My Documents\\My Videos\\Arena AI
-   - Build interactive Web Apps & pin them directly to your XP Desktop!
-2. Fast, Persistent Old Internet Explorer 6:
-   - Browse the real web with persistent tabs, Favorites, History, and Turbo Reader!
-3. Classic AOL Slingo Deluxe + All 6 Original XP Games:
-   - Slingo Deluxe, 3D Pinball Space Cadet, Minesweeper, Solitaire, Spider Solitaire, FreeCell, Hearts!
-4. America Online 9.0 56K Dial-Up + Gmail Mailbox + Windows Update!`,
+1. TrillXP 2000s Museum & Official Android APK (/downloads/TrillXP.apk):
+   - Interactive Era Exhibits, Then-vs-Now History, Sound Museum & Quests!
+   - Download signed TrillXP.apk (ai.trill.trillxp) right from the desktop!
+2. 12 Classic PC & AOL Games:
+   - Classic AOL Slingo Deluxe (with the Devil Laugh & Winged Cherub!),
+     Zero-Lag Solitaire, Spider Solitaire, FreeCell, 3D Pinball Space Cadet,
+     Minesweeper, Hearts, SkiFree, JezzBall, Mahjong Titans, Checkers & Tetris!
+3. Windows PowerShell 1.0 (Monad), Full CMD, WordPad & Regedit:
+   - Run PowerShell cmdlets & pipelines alongside MS-DOS/XP cmd.exe!
+4. Arena AI Agent + Fast Persistent IE6 + AOL 9.0 56K Dial-Up & Gmail!`,
   },
   {
     id: 'todo-txt',
@@ -451,6 +473,14 @@ const DEFAULT_DESKTOP_ICONS: DesktopIconItem[] = [
   { id: 'di-mines', label: 'Minesweeper', icon: '/icons/minesweeper/mine-icon.png', appId: 'minesweeper', gridCol: 2, gridRow: 0 },
   { id: 'di-sol', label: 'Solitaire', icon: '/icons/solitaire.png', appId: 'solitaire', gridCol: 2, gridRow: 1 },
   { id: 'di-spider', label: 'Spider Solitaire', icon: '/icons/spider.png', appId: 'spider', gridCol: 2, gridRow: 2 },
+  { id: 'di-skifree', label: 'SkiFree', icon: '/icons/skifree.svg', appId: 'skifree', gridCol: 2, gridRow: 3 },
+  { id: 'di-powershell', label: 'Windows PowerShell', icon: '/icons/powershell.svg', appId: 'powershell', gridCol: 2, gridRow: 4 },
+  { id: 'di-cmd', label: 'Command Prompt', icon: '/icons/56(32x32).png', appId: 'cmd', gridCol: 2, gridRow: 5 },
+
+  { id: 'di-museum', label: 'TrillXP Museum', icon: '/icons/trillxp.svg', appId: 'trillxp-museum', gridCol: 3, gridRow: 0 },
+  { id: 'di-apk', label: 'Get TrillXP.apk', icon: '/icons/android-apk.svg', appId: 'apk-installer', gridCol: 3, gridRow: 1 },
+  { id: 'di-jezzball', label: 'JezzBall XP', icon: '/icons/jezzball.svg', appId: 'jezzball', gridCol: 3, gridRow: 2 },
+  { id: 'di-mahjong', label: 'Mahjong Titans', icon: '/icons/mahjong.svg', appId: 'mahjong', gridCol: 3, gridRow: 3 },
 ];
 
 const APP_DEFAULTS: Record<string, { title: string; icon: string; w: number; h: number; minW?: number; minH?: number; resizable?: boolean }> = {
@@ -463,24 +493,35 @@ const APP_DEFAULTS: Record<string, { title: string; icon: string; w: number; h: 
   aim: { title: 'AIM - Buddy List', icon: '/icons/luna16/im.png', w: 630, h: 470, minW: 480, minH: 360 },
   pinball: { title: '3D Pinball for Windows - Space Cadet', icon: '/icons/pinball.png', w: 628, h: 486, minW: 520, minH: 410 },
   minesweeper: { title: 'Minesweeper', icon: '/icons/minesweeper/mine-icon.png', w: 320, h: 380, minW: 220, minH: 280 },
-  solitaire: { title: 'Solitaire', icon: '/icons/solitaire.png', w: 680, h: 510, minW: 560, minH: 420 },
-  spider: { title: 'Spider Solitaire', icon: '/icons/spider.png', w: 800, h: 550, minW: 680, minH: 450 },
-  freecell: { title: 'FreeCell', icon: '/icons/freecell.png', w: 690, h: 510, minW: 580, minH: 420 },
+  solitaire: { title: 'Solitaire', icon: '/icons/solitaire.png', w: 690, h: 525, minW: 560, minH: 420 },
+  spider: { title: 'Spider Solitaire', icon: '/icons/spider.png', w: 830, h: 575, minW: 680, minH: 450 },
+  freecell: { title: 'FreeCell', icon: '/icons/freecell.png', w: 690, h: 520, minW: 580, minH: 420 },
   hearts: { title: 'The Microsoft Hearts Network', icon: '/icons/heart.png', w: 680, h: 510, minW: 560, minH: 430 },
-  slingo: { title: 'Slingo Deluxe — Classic AOL Edition', icon: '/icons/slingo.svg', w: 760, h: 590, minW: 580, minH: 500 },
-  'arena-ai': { title: 'Arena AI Agent — Windows XP Copilot & Studio', icon: '/icons/arena-ai.svg', w: 960, h: 620, minW: 640, minH: 440 },
+  slingo: { title: 'Slingo Deluxe — Classic AOL Casino Edition', icon: '/icons/slingo.svg', w: 790, h: 585, minW: 590, minH: 500 },
+  skifree: { title: 'SkiFree — Watch Out for the Yeti at 2000m!', icon: '/icons/skifree.svg', w: 640, h: 485, minW: 480, minH: 380 },
+  jezzball: { title: 'JezzBall XP — Microsoft Entertainment Pack', icon: '/icons/jezzball.svg', w: 640, h: 485, minW: 480, minH: 380 },
+  mahjong: { title: 'Mahjong Titans — Dragon Solitaire', icon: '/icons/mahjong.svg', w: 640, h: 495, minW: 500, minH: 400 },
+  checkers: { title: 'MSN Gaming Zone — Internet Checkers', icon: '/icons/checkers.svg', w: 620, h: 465, minW: 520, minH: 400 },
+  tetris: { title: 'Tetris XP — Entertainment Pack', icon: '/icons/tetris.svg', w: 460, h: 495, minW: 410, minH: 450 },
+  'arena-ai': { title: 'Arena AI Agent — TrillXP Copilot & Studio', icon: '/icons/arena-ai.svg', w: 960, h: 620, minW: 640, minH: 440 },
   'windows-update': { title: 'Microsoft Windows Update', icon: '/icons/luna16/secure_warn.png', w: 760, h: 530, minW: 560, minH: 400 },
   notepad: { title: 'Untitled - Notepad', icon: '/icons/327(16x16).png', w: 560, h: 400, minW: 320, minH: 220 },
+  wordpad: { title: 'Document - WordPad', icon: '/icons/327(16x16).png', w: 700, h: 510, minW: 480, minH: 350 },
   paint: { title: 'untitled - Paint', icon: '/icons/680(16x16).png', w: 720, h: 520, minW: 480, minH: 360 },
   wmplayer: { title: 'Windows Media Player', icon: '/icons/846(16x16).png', w: 720, h: 510, minW: 480, minH: 360 },
   calculator: { title: 'Calculator', icon: '/icons/74(16x16).png', w: 274, h: 288, minW: 274, minH: 288, resizable: false },
-  cmd: { title: 'C:\\WINDOWS\\system32\\cmd.exe', icon: '/icons/56(16x16).png', w: 640, h: 400, minW: 400, minH: 240 },
+  cmd: { title: 'C:\\WINDOWS\\system32\\cmd.exe', icon: '/icons/56(16x16).png', w: 660, h: 420, minW: 400, minH: 240 },
+  powershell: { title: 'Windows PowerShell 1.0 (Monad)', icon: '/icons/powershell.svg', w: 700, h: 440, minW: 440, minH: 260 },
+  regedit: { title: 'Registry Editor (regedit.exe)', icon: '/icons/luna16/monitor.png', w: 680, h: 450, minW: 480, minH: 320 },
+  winver: { title: 'About TrillXP (Windows XP SP3)', icon: '/icons/windows.png', w: 450, h: 295, minW: 450, minH: 295, resizable: false },
+  'trillxp-museum': { title: 'TrillXP — 2000s Time Capsule & Educator Museum', icon: '/icons/trillxp.svg', w: 800, h: 550, minW: 600, minH: 430 },
+  'apk-installer': { title: 'TrillXP for Android — Official Signed APK', icon: '/icons/android-apk.svg', w: 690, h: 500, minW: 520, minH: 390 },
   taskmgr: { title: 'Windows Task Manager', icon: '/icons/luna16/monitor.png', w: 450, h: 465, minW: 390, minH: 400 },
   'control-panel': { title: 'Control Panel', icon: '/icons/300(16x16).png', w: 720, h: 500, minW: 540, minH: 380 },
   'software-center': { title: 'Add or Remove Programs - Software Installer', icon: '/icons/luna32/file_generic_installer.png', w: 770, h: 535, minW: 600, minH: 420 },
   'setup-wizard': { title: 'InstallShield Wizard', icon: '/icons/luna32/file_generic_installer.png', w: 515, h: 392, minW: 515, minH: 392, resizable: false },
   'run-dialog': { title: 'Run', icon: '/icons/743(32x32).png', w: 390, h: 215, minW: 390, minH: 215, resizable: false },
-  'tour-xp': { title: 'Welcome to Windows XP Tour', icon: '/icons/853(32x32).png', w: 710, h: 500, minW: 560, minH: 400 },
+  'tour-xp': { title: 'Welcome to TrillXP Tour', icon: '/icons/853(32x32).png', w: 710, h: 500, minW: 560, minH: 400 },
   'picture-viewer': { title: 'Windows Picture and Fax Viewer', icon: '/icons/307(32x32).png', w: 660, h: 495, minW: 400, minH: 300 },
   winamp: { title: 'Winamp 2.91', icon: '/icons/winamp.png', w: 360, h: 425, minW: 340, minH: 380 },
   'arcade-pack': { title: 'Plus! Retro Arcade Pack XP', icon: '/icons/luna32/gamepad.png', w: 560, h: 510, minW: 480, minH: 460 },
@@ -499,12 +540,28 @@ function mergeRequiredSystemNodes(existing: VFSNode[]): VFSNode[] {
 }
 
 function mergeRequiredDesktopIcons(existing: DesktopIconItem[]): DesktopIconItem[] {
-  const existingIds = new Set(existing.map((i) => i.id));
-  const mustHave = DEFAULT_DESKTOP_ICONS.filter((d) =>
-    ['di-arena', 'di-slingo', 'di-winupdate'].includes(d.id) && !existingIds.has(d.id)
+  // Always refresh Slingo's updated Joker SVG icon & ensure core TrillXP icons appear!
+  const refreshed = existing.map((ic) =>
+    ic.id === 'di-slingo' ? { ...ic, icon: '/icons/slingo.svg' } : ic
   );
-  if (mustHave.length === 0) return existing;
-  const occupied = new Set(existing.map((p) => `${p.gridCol},${p.gridRow}`));
+  const existingIds = new Set(refreshed.map((i) => i.id));
+  const mustHave = DEFAULT_DESKTOP_ICONS.filter(
+    (d) =>
+      [
+        'di-arena',
+        'di-slingo',
+        'di-winupdate',
+        'di-museum',
+        'di-apk',
+        'di-powershell',
+        'di-cmd',
+        'di-skifree',
+        'di-jezzball',
+        'di-mahjong',
+      ].includes(d.id) && !existingIds.has(d.id)
+  );
+  if (mustHave.length === 0) return refreshed;
+  const occupied = new Set(refreshed.map((p) => `${p.gridCol},${p.gridRow}`));
   const placed = mustHave.map((item) => {
     let col = item.gridCol;
     let row = item.gridRow;
@@ -522,7 +579,7 @@ function mergeRequiredDesktopIcons(existing: DesktopIconItem[]): DesktopIconItem
     occupied.add(`${col},${row}`);
     return { ...item, gridCol: col, gridRow: row };
   });
-  return [...existing, ...placed];
+  return [...refreshed, ...placed];
 }
 
 const OSContext = createContext<OSContextValue | null>(null);
@@ -676,10 +733,10 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     setBootPhase('desktop');
     window.setTimeout(() => {
       pushBalloon(
-        'Arena AI Copilot & Windows Update Ready',
-        'Launch "Arena AI Agent" to run tasks or generate images/videos into persistent storage, play Slingo Deluxe, or browse in IE6!',
-        '/icons/arena-ai.svg',
-        'arena-ai'
+        'Welcome to TrillXP — 2000s Time Machine!',
+        'Click here for the Interactive 2000s Museum, get TrillXP.apk for Android, play Classic Slingo & zero-lag Solitaire, or open PowerShell 1.0!',
+        '/icons/trillxp.svg',
+        'trillxp-museum'
       );
     }, 1800);
   }, [unlockAudio, playSound, pushBalloon]);
@@ -788,10 +845,10 @@ export const OSProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           y,
           width: w,
           height: h,
-          minWidth: meta.minW || 300,
-          minHeight: meta.minH || 220,
+          minWidth: Math.min(meta.minW || 300, vw - 16),
+          minHeight: Math.min(meta.minH || 220, vh - 12),
           minimized: false,
-          maximized: false,
+          maximized: vw < 640 && meta.resizable !== false,
           resizable: meta.resizable !== false,
           zIndex: nextZ,
           payload,

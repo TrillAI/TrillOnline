@@ -3,18 +3,22 @@ import { useSound } from '../../../context/SoundContext';
 import { idbGet, persistHybrid, loadLocalFast } from '../../../services/persistentStorage';
 
 /* ============================================================================
-   CLASSIC SLINGO DELUXE / AOL SLINGO — EXACT REPLICA
-   5x5 Matrix (1-75) + 5 Slot Reels, 20 Spins, Jokers, Super Jokers,
-   Gold Coins, Free Spins, Devil, Cherub Rescue, Paid Spins 17-20,
-   Spin-Scaled Full Card Jackpots (6,500-15,000), Deluxe Powerups & AOL Chat!
+   AUTHENTIC CLASSIC AOL SLINGO (1998) & SLINGO DELUXE (2002)
+   - Classic Crimson/Gold Beveled Casino Cabinet + Cream 5x5 Embossed Tiles
+   - Iconic Crimson-Gold Star Medallion Daubs + 5 3D Cylindrical Slot Drums
+   - Real Recorded Villain Devil Laugh WAVs + Slot/Coin/Joker/Cherub/Slingo Audio
+   - Animated Pop-Out Red Devil & Winged Cherub Stage Cutscenes
+   - 3 Modes (Classic AOL, Slingo Deluxe Powerups, Daily Challenge) + Trophies!
    ============================================================================ */
 
 type ReelSymbolType = 'NUMBER' | 'JOKER' | 'SUPER_JOKER' | 'COIN' | 'FREE_SPIN' | 'DEVIL' | 'CHERUB';
+type SlingoGameMode = 'Classic AOL' | 'Deluxe' | 'Daily Challenge';
+type DeluxePowerup = 'vision' | 'devil_shield' | 'multiplier_2x' | 'extra_spins' | 'bounce_back';
 
 interface ReelResult {
   type: ReelSymbolType;
   number?: number;
-  used: boolean; // whether number match or wild placement has been used this spin
+  used: boolean;
 }
 
 interface HighScoreEntry {
@@ -23,10 +27,18 @@ interface HighScoreEntry {
   fullCard: boolean;
   slingos: number;
   date: string;
-  mode: 'Classic AOL' | 'Deluxe';
+  mode: SlingoGameMode;
 }
 
-type DeluxePowerup = 'none' | 'vision' | 'devil_shield' | 'multiplier_2x' | 'extra_spins';
+interface SlingoCareerStats {
+  gamesPlayed: number;
+  fullCards: number;
+  totalSlingos: number;
+  devilsMet: number;
+  cherubRescues: number;
+  highestScore: number;
+  unlockedBadges: string[];
+}
 
 interface SavedSlingoGame {
   board: number[][];
@@ -38,7 +50,7 @@ interface SavedSlingoGame {
   completedLines: string[];
   reels: ReelResult[];
   phase: 'ready_to_spin' | 'marking' | 'paid_spin_prompt' | 'gameover';
-  gameMode: 'Classic AOL' | 'Deluxe';
+  gameMode: SlingoGameMode;
   powerup: DeluxePowerup;
   shieldCharges: number;
 }
@@ -81,18 +93,34 @@ const DEFAULT_HIGH_SCORES: HighScoreEntry[] = [
   { name: 'CherubSaver', score: 12400, fullCard: false, slingos: 5, date: '2004-11-28', mode: 'Classic AOL' },
 ];
 
+const DEFAULT_STATS: SlingoCareerStats = {
+  gamesPlayed: 0,
+  fullCards: 0,
+  totalSlingos: 0,
+  devilsMet: 0,
+  cherubRescues: 0,
+  highestScore: 0,
+  unlockedBadges: [],
+};
+
+const BADGE_DEFINITIONS = [
+  { id: 'first_slingo', icon: '⭐', title: 'First Slingo!', desc: 'Complete your first 5-in-a-row Slingo line' },
+  { id: 'double_slingo', icon: '⚡', title: 'Double Trouble', desc: 'Score 2+ Slingos on a single tile placement' },
+  { id: 'devil_survivor', icon: '😈', title: 'Met the Devil', desc: 'Encounter the Slingo Devil and hear his laugh' },
+  { id: 'cherub_blessed', icon: '👼', title: 'Cherub Rescue', desc: 'Get saved from the Devil by the Cherub or Shield' },
+  { id: 'full_card', icon: '👑', title: 'Full Card Blackout', desc: 'Cover all 25 tiles before Spin 20 ends' },
+  { id: 'high_roller', icon: '💰', title: '20K High Roller', desc: 'Finish a game with 20,000+ points' },
+];
+
 const ALL_SLINGO_LINES: { id: string; cells: [number, number][] }[] = [
-  // 5 Horizontal Rows
   ...[0, 1, 2, 3, 4].map((r) => ({
     id: `r${r}`,
     cells: [0, 1, 2, 3, 4].map((c) => [r, c] as [number, number]),
   })),
-  // 5 Vertical Columns
   ...[0, 1, 2, 3, 4].map((c) => ({
     id: `c${c}`,
     cells: [0, 1, 2, 3, 4].map((r) => [r, c] as [number, number]),
   })),
-  // 2 Diagonals
   {
     id: 'd0',
     cells: [
@@ -115,15 +143,19 @@ const ALL_SLINGO_LINES: { id: string; cells: [number, number][] }[] = [
   },
 ];
 
-function generateSlingoBoard(): number[][] {
-  // Returns board[row][col] where col 0: 1..15, col 1: 16..30, col 2: 31..45, col 3: 46..60, col 4: 61..75
+function generateSlingoBoard(seedInput?: number): number[][] {
+  let seed = seedInput ?? Math.floor(Math.random() * 0x7fffffff);
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
   const cols: number[][] = [];
   for (let c = 0; c < 5; c++) {
     const min = c * 15 + 1;
     const pool: number[] = [];
     for (let n = min; n < min + 15; n++) pool.push(n);
     for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor((seedInput !== undefined ? rand() : Math.random()) * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
     cols.push(pool.slice(0, 5));
@@ -136,21 +168,36 @@ function generateSlingoBoard(): number[][] {
 }
 
 /* ============================================================================
-   CUSTOM SLINGO WEBAUDIO SOUND SYNTHESIZER
+   HYBRID REAL-WAV + WEBAUDIO SLINGO SOUND ENGINE
+   Uses real 16-bit PCM WAV files in /sounds/slingo/* PLUS crisp synth layers!
    ============================================================================ */
-class SlingoAudioSynth {
+class SlingoSoundEngine {
   private ctx: AudioContext | null = null;
+  private laughToggle = false;
 
   private ensure(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AC =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AC) this.ctx = new AC();
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
     return this.ctx;
+  }
+
+  private playClip(url: string, vol: number, playbackRate = 1.0) {
+    if (vol <= 0.001) return;
+    try {
+      const a = new Audio(url);
+      a.volume = Math.min(1, vol);
+      a.playbackRate = playbackRate;
+      a.play().catch(() => {});
+    } catch {
+      // ignore
+    }
   }
 
   tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, slideTo?: number) {
@@ -173,79 +220,120 @@ class SlingoAudioSynth {
     osc.stop(now + dur + 0.02);
   }
 
+  spinButton(vol: number) {
+    this.tone(330, 0.06, 'triangle', vol * 0.25, 0, 520);
+  }
+
   reelTick(vol: number) {
-    this.tone(420 + Math.random() * 180, 0.035, 'triangle', vol * 0.16);
+    this.tone(480 + Math.random() * 190, 0.028, 'triangle', vol * 0.13);
   }
 
   reelStop(col: number, vol: number) {
-    this.tone(220 + col * 42, 0.085, 'square', vol * 0.22, 0, 140);
+    this.playClip('/sounds/slingo/reel-stop.wav', vol * 0.55, 0.92 + col * 0.05);
+    this.tone(190 + col * 36, 0.07, 'square', vol * 0.14, 0, 120);
   }
 
   daub(vol: number) {
-    this.tone(660, 0.09, 'sine', vol * 0.3);
-    this.tone(990, 0.14, 'triangle', vol * 0.26, 0.06);
+    this.playClip('/sounds/card-place.wav', vol * 0.7, 1.15);
+    this.tone(698.46, 0.08, 'sine', vol * 0.26);
+    this.tone(1046.5, 0.13, 'triangle', vol * 0.24, 0.05);
   }
 
   coin(vol: number) {
-    this.tone(987.77, 0.09, 'sine', vol * 0.32);
-    this.tone(1318.51, 0.24, 'sine', vol * 0.34, 0.075);
+    this.playClip('/sounds/slingo/coin-collect.wav', vol * 0.85);
+    this.tone(1046.5, 0.09, 'sine', vol * 0.22);
+    this.tone(1567.98, 0.2, 'sine', vol * 0.22, 0.07);
   }
 
   joker(vol: number) {
+    this.playClip('/sounds/slingo/joker-chime.wav', vol * 0.8);
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-      this.tone(f, 0.12, 'triangle', vol * 0.28, i * 0.055);
+      this.tone(f, 0.11, 'triangle', vol * 0.2, i * 0.05);
     });
   }
 
   devilLaugh(vol: number) {
-    [290, 250, 215, 180, 145].forEach((f, i) => {
-      this.tone(f, 0.14, 'sawtooth', vol * 0.28, i * 0.11, f * 0.78);
+    // Play REAL recorded evil villain laugh WAV!
+    const clip = this.laughToggle
+      ? '/sounds/slingo/devil-laugh-2.wav'
+      : '/sounds/slingo/devil-laugh-1.wav';
+    this.laughToggle = !this.laughToggle;
+    this.playClip(clip, Math.min(1, vol * 0.98));
+    // Add subtle low-end fire rumble underneath for theatrical punch!
+    [130, 110, 92].forEach((f, i) => {
+      this.tone(f, 0.22, 'sawtooth', vol * 0.16, i * 0.14, f * 0.72);
     });
   }
 
   cherubSave(vol: number) {
-    [523.25, 659.25, 783.99, 987.77, 1174.66, 1567.98].forEach((f, i) => {
-      this.tone(f, 0.22, 'sine', vol * 0.28, i * 0.065);
-    });
+    this.playClip('/sounds/slingo/cherub-harp.wav', Math.min(1, vol * 0.95));
   }
 
   slingoFanfare(vol: number) {
+    this.playClip('/sounds/slingo/slingo-win.wav', Math.min(1, vol * 0.88));
     const notes = [523.25, 659.25, 783.99, 659.25, 1046.5];
-    const times = [0, 0.1, 0.2, 0.3, 0.42];
-    const durs = [0.09, 0.09, 0.09, 0.1, 0.38];
+    const times = [0, 0.09, 0.18, 0.27, 0.38];
     notes.forEach((f, i) => {
-      this.tone(f, durs[i], 'triangle', vol * 0.35, times[i]);
-      this.tone(f * 0.5, durs[i], 'sine', vol * 0.2, times[i]);
+      this.tone(f, i === 4 ? 0.36 : 0.09, 'triangle', vol * 0.25, times[i]);
     });
   }
 
   fullCardJackpot(vol: number) {
+    this.playClip('/sounds/slingo/slingo-win.wav', Math.min(1, vol));
     const scale = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1318.5, 1567.98];
     scale.forEach((f, i) => {
-      this.tone(f, 0.24, 'triangle', vol * 0.35, i * 0.08);
+      this.tone(f, 0.25, 'triangle', vol * 0.3, i * 0.075);
     });
   }
 }
 
-const slingoSynth = new SlingoAudioSynth();
+const slingoAudio = new SlingoSoundEngine();
 
 /* ============================================================================
-   CRISP RETRO ILLUSTRATED SLINGO SYMBOL GRAPHICS
+   ICONIC CLASSIC SLINGO REEL SYMBOLS & EMBOSSED STAR MEDALLION
    ============================================================================ */
-const SlingoSymbolGraphic: React.FC<{ type: ReelSymbolType; number?: number; size?: number }> = ({
+const SlingoStarMedallion: React.FC<{ flashing?: boolean }> = ({ flashing }) => (
+  <div
+    style={{
+      width: '84%',
+      height: '84%',
+      borderRadius: '50%',
+      background: 'radial-gradient(circle at 35% 30%, #ff6b6b 0%, #dc2626 55%, #7f1d1d 100%)',
+      border: '2.5px solid #fde047',
+      boxShadow: flashing
+        ? '0 0 14px #fde047, inset 0 1px 3px rgba(255,255,255,0.7)'
+        : '0 2px 4px rgba(0,0,0,0.45), inset 0 1px 2px rgba(255,255,255,0.55)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      animation: flashing ? 'slingoStarSpin 0.8s ease-in-out infinite alternate' : 'slingoCoverPop 0.22s ease-out',
+    }}
+  >
+    <svg width="74%" height="74%" viewBox="0 0 36 36">
+      <polygon
+        points="18,2 22.5,12.5 34,13.5 25,21 27.8,32.5 18,26.2 8.2,32.5 11,21 2,13.5 13.5,12.5"
+        fill="#fde047"
+        stroke="#854d0e"
+        strokeWidth="1.4"
+      />
+    </svg>
+  </div>
+);
+
+const SlingoReelSymbolSVG: React.FC<{ type: ReelSymbolType; number?: number; size?: number }> = ({
   type,
   number,
-  size = 44,
+  size = 46,
 }) => {
   if (type === 'NUMBER') {
     return (
       <div
         style={{
-          fontSize: size * 0.54,
+          fontSize: size * 0.56,
           fontWeight: 900,
-          color: '#10255a',
-          fontFamily: "'Arial Black', Impact, sans-serif",
-          textShadow: '0 1px 0 #fff',
+          color: '#172554',
+          fontFamily: "'Georgia', 'Times New Roman', 'Arial Black', serif",
+          textShadow: '0 1px 0 #ffffff, 0 -1px 0 rgba(0,0,0,0.2)',
           lineHeight: 1,
         }}
       >
@@ -255,28 +343,21 @@ const SlingoSymbolGraphic: React.FC<{ type: ReelSymbolType; number?: number; siz
   }
   if (type === 'JOKER') {
     return (
-      <svg width={size} height={size} viewBox="0 0 48 48">
-        <defs>
-          <radialGradient id="jkBg" cx="50%" cy="45%" r="55%">
-            <stop offset="0%" stopColor="#fef08a" />
-            <stop offset="100%" stopColor="#f59e0b" />
-          </radialGradient>
-        </defs>
-        <circle cx="24" cy="24" r="21" fill="url(#jkBg)" stroke="#b45309" strokeWidth="2" />
-        {/* 3-Point Red/Blue/Purple Jester Hat */}
-        <path d="M9 22 C7 10, 16 8, 24 19 Z" fill="#dc2626" stroke="#7f1d1d" strokeWidth="1.2" />
-        <path d="M24 19 C22 7, 26 7, 24 19 Z" fill="#7c3aed" />
-        <path d="M18 19 C20 6, 28 6, 30 19 Z" fill="#2563eb" stroke="#1e3a8a" strokeWidth="1.2" />
-        <path d="M39 22 C41 10, 32 8, 24 19 Z" fill="#16a34a" stroke="#14532d" strokeWidth="1.2" />
-        <circle cx="9" cy="12" r="2.8" fill="#fde047" stroke="#92400e" />
-        <circle cx="24" cy="8" r="2.8" fill="#fde047" stroke="#92400e" />
-        <circle cx="39" cy="12" r="2.8" fill="#fde047" stroke="#92400e" />
-        {/* Smiling Jester Face */}
-        <circle cx="24" cy="28" r="10" fill="#ffedd5" stroke="#9a3412" strokeWidth="1.2" />
-        <circle cx="20.5" cy="26" r="1.6" fill="#1e293b" />
-        <circle cx="27.5" cy="26" r="1.6" fill="#1e293b" />
-        <path d="M19 30 Q24 35 29 30" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" />
-        <text x="24" y="45" textAnchor="middle" fontSize="8" fontWeight="900" fill="#7c2d12">
+      <svg width={size} height={size} viewBox="0 0 52 52">
+        {/* Authentic 3-Pronged Slingo Joker */}
+        <path d="M15,23 C8,15 3,16 5,24 C8,21 11,23 14,27 Z" fill="#dc2626" stroke="#450a0a" strokeWidth="1.2" />
+        <path d="M37,23 C44,15 49,16 47,24 C44,21 41,23 38,27 Z" fill="#1d4ed8" stroke="#1e1b4b" strokeWidth="1.2" />
+        <path d="M18,22 C19,9 24,5 26,5 C28,5 33,9 34,22 Z" fill="#eab308" stroke="#713f12" strokeWidth="1.2" />
+        <circle cx="5" cy="24" r="2.8" fill="#fde047" stroke="#713f12" />
+        <circle cx="47" cy="24" r="2.8" fill="#fde047" stroke="#713f12" />
+        <circle cx="26" cy="5" r="2.8" fill="#fde047" stroke="#713f12" />
+        <ellipse cx="26" cy="30" rx="11" ry="10" fill="#ffedd5" stroke="#7c2d12" strokeWidth="1.3" />
+        <circle cx="22" cy="28" r="1.6" fill="#111827" />
+        <circle cx="30" cy="28" r="1.6" fill="#111827" />
+        <circle cx="26" cy="31" r="1.8" fill="#f97316" />
+        <path d="M20,33.5 Q26,39 32,33.5" fill="#fff" stroke="#b91c1c" strokeWidth="1.4" />
+        <rect x="7" y="41" width="38" height="9" rx="2.5" fill="#991b1b" stroke="#fde047" strokeWidth="1" />
+        <text x="26" y="48" textAnchor="middle" fontSize="7" fontWeight="900" fill="#fef08a">
           JOKER
         </text>
       </svg>
@@ -284,61 +365,52 @@ const SlingoSymbolGraphic: React.FC<{ type: ReelSymbolType; number?: number; siz
   }
   if (type === 'SUPER_JOKER') {
     return (
-      <svg width={size} height={size} viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r="21" fill="#10b981" stroke="#064e3b" strokeWidth="2.2" />
-        <polygon
-          points="24,4 29,16 42,17 32,25 35,38 24,31 13,38 16,25 6,17 19,16"
-          fill="#fde047"
-          stroke="#b45309"
-          strokeWidth="1.4"
-        />
-        <circle cx="24" cy="23" r="7.5" fill="#ecfdf5" stroke="#065f46" strokeWidth="1.2" />
-        <circle cx="21.5" cy="21.5" r="1.4" fill="#064e3b" />
-        <circle cx="26.5" cy="21.5" r="1.4" fill="#064e3b" />
-        <path d="M20.5 25 Q24 28.5 27.5 25" fill="none" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" />
-        <text x="24" y="45" textAnchor="middle" fontSize="7.4" fontWeight="900" fill="#ffffff">
-          SUPER!
+      <svg width={size} height={size} viewBox="0 0 52 52">
+        <circle cx="26" cy="24" r="19" fill="#059669" stroke="#fde047" strokeWidth="2.2" />
+        <path d="M15,21 C8,13 4,15 6,22 C9,20 12,22 15,25 Z" fill="#a855f7" stroke="#3b0764" strokeWidth="1.1" />
+        <path d="M37,21 C44,13 48,15 46,22 C43,20 40,22 37,25 Z" fill="#10b981" stroke="#064e3b" strokeWidth="1.1" />
+        <path d="M19,20 C20,8 24,5 26,5 C28,5 32,8 33,20 Z" fill="#fde047" stroke="#713f12" strokeWidth="1.1" />
+        <ellipse cx="26" cy="28" rx="10" ry="9" fill="#ecfdf5" stroke="#065f46" strokeWidth="1.2" />
+        <circle cx="22.5" cy="26.5" r="1.6" fill="#064e3b" />
+        <circle cx="29.5" cy="26.5" r="1.6" fill="#064e3b" />
+        <path d="M21,31 Q26,36 31,31" fill="none" stroke="#047857" strokeWidth="1.8" />
+        <rect x="4" y="40" width="44" height="10" rx="3" fill="#065f46" stroke="#fde047" strokeWidth="1.2" />
+        <text x="26" y="47.5" textAnchor="middle" fontSize="7" fontWeight="900" fill="#fde047">
+          SUPER JOKER
         </text>
       </svg>
     );
   }
   if (type === 'COIN') {
     return (
-      <svg width={size} height={size} viewBox="0 0 48 48">
+      <svg width={size} height={size} viewBox="0 0 52 52">
         <defs>
-          <radialGradient id="goldCoin" cx="35%" cy="30%" r="65%">
+          <radialGradient id="slGoldCoin" cx="35%" cy="30%" r="65%">
             <stop offset="0%" stopColor="#fffbeb" />
-            <stop offset="38%" stopColor="#facc15" />
+            <stop offset="40%" stopColor="#facc15" />
             <stop offset="100%" stopColor="#b45309" />
           </radialGradient>
         </defs>
-        <circle cx="24" cy="24" r="19" fill="url(#goldCoin)" stroke="#78350f" strokeWidth="2" />
-        <circle cx="24" cy="24" r="14.5" fill="none" stroke="#fef08a" strokeWidth="1.3" strokeDasharray="3 2" />
-        <text x="24" y="23" textAnchor="middle" fontSize="9.5" fontWeight="900" fill="#78350f">
-          1000
+        <circle cx="26" cy="26" r="20" fill="url(#slGoldCoin)" stroke="#78350f" strokeWidth="2.2" />
+        <circle cx="26" cy="26" r="15.5" fill="none" stroke="#fef9c3" strokeWidth="1.3" strokeDasharray="3 2" />
+        <text x="26" y="25" textAnchor="middle" fontSize="10" fontWeight="900" fill="#78350f">
+          1,000
         </text>
-        <text x="24" y="32" textAnchor="middle" fontSize="7.5" fontWeight="900" fill="#92400e">
-          GOLD
+        <text x="26" y="34" textAnchor="middle" fontSize="7.5" fontWeight="900" fill="#92400e">
+          COIN
         </text>
       </svg>
     );
   }
   if (type === 'FREE_SPIN') {
     return (
-      <svg width={size} height={size} viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r="19" fill="#2563eb" stroke="#93c5fd" strokeWidth="2.2" />
-        <path
-          d="M15 22 A9 9 0 1 1 20 32"
-          fill="none"
-          stroke="#fde047"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <polygon points="12,18 19,21 14,26" fill="#fde047" />
-        <text x="24" y="23" textAnchor="middle" fontSize="8.5" fontWeight="900" fill="#ffffff">
+      <svg width={size} height={size} viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="20" fill="#1d4ed8" stroke="#fde047" strokeWidth="2.4" />
+        <circle cx="26" cy="26" r="15" fill="#2563eb" stroke="#93c5fd" strokeWidth="1" />
+        <text x="26" y="24" textAnchor="middle" fontSize="9.5" fontWeight="900" fill="#ffffff">
           FREE
         </text>
-        <text x="24" y="32" textAnchor="middle" fontSize="8" fontWeight="900" fill="#fde047">
+        <text x="26" y="34" textAnchor="middle" fontSize="8.8" fontWeight="900" fill="#fde047">
           SPIN
         </text>
       </svg>
@@ -346,54 +418,210 @@ const SlingoSymbolGraphic: React.FC<{ type: ReelSymbolType; number?: number; siz
   }
   if (type === 'DEVIL') {
     return (
-      <svg width={size} height={size} viewBox="0 0 48 48">
-        <circle cx="24" cy="25" r="18" fill="#7f1d1d" stroke="#ef4444" strokeWidth="2" />
-        {/* Horns */}
-        <path d="M12 16 C9 7, 15 6, 18 14 Z" fill="#fde047" stroke="#991b1b" strokeWidth="1" />
-        <path d="M36 16 C39 7, 33 6, 30 14 Z" fill="#fde047" stroke="#991b1b" strokeWidth="1" />
-        {/* Red Devil Face */}
-        <circle cx="24" cy="26" r="12" fill="#dc2626" stroke="#450a0a" strokeWidth="1.3" />
-        <polygon points="17,21 22,23 18,25" fill="#fef08a" />
-        <polygon points="31,21 26,23 30,25" fill="#fef08a" />
-        <path d="M18 31 Q24 36 30 31" fill="none" stroke="#450a0a" strokeWidth="2.2" strokeLinecap="round" />
-        <text x="24" y="45" textAnchor="middle" fontSize="7.5" fontWeight="900" fill="#fecaca">
-          DEVIL!
-        </text>
+      <svg width={size} height={size} viewBox="0 0 52 52">
+        <circle cx="26" cy="27" r="19" fill="#450a0a" stroke="#ef4444" strokeWidth="2" />
+        <path d="M12,17 C8,7 15,6 19,15 Z" fill="#fef08a" stroke="#7f1d1d" strokeWidth="1.2" />
+        <path d="M40,17 C44,7 37,6 33,15 Z" fill="#fef08a" stroke="#7f1d1d" strokeWidth="1.2" />
+        <ellipse cx="26" cy="27" rx="13" ry="12" fill="#dc2626" stroke="#450a0a" strokeWidth="1.4" />
+        <polygon points="18,22 24,25 19,27" fill="#fde047" />
+        <polygon points="34,22 28,25 33,27" fill="#fde047" />
+        <path d="M19,32 Q26,38 33,32" fill="#fff" stroke="#450a0a" strokeWidth="1.4" />
+        <polygon points="24,39 26,44 28,39" fill="#111827" />
       </svg>
     );
   }
   // CHERUB
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48">
-      <circle cx="24" cy="24" r="19" fill="#38bdf8" stroke="#bae6fd" strokeWidth="2" />
-      {/* Halo */}
-      <ellipse cx="24" cy="10" rx="8" ry="2.4" fill="none" stroke="#fde047" strokeWidth="2.2" />
-      {/* Wings */}
-      <path d="M7 24 Q12 15 17 24 Q12 30 7 24 Z" fill="#ffffff" />
-      <path d="M41 24 Q36 15 31 24 Q36 30 41 24 Z" fill="#ffffff" />
-      {/* Face */}
-      <circle cx="24" cy="24" r="9.5" fill="#ffedd5" stroke="#c2410c" strokeWidth="1" />
-      <circle cx="21" cy="23" r="1.4" fill="#1e293b" />
-      <circle cx="27" cy="23" r="1.4" fill="#1e293b" />
-      <path d="M21 27 Q24 30 27 27" fill="none" stroke="#e11d48" strokeWidth="1.6" strokeLinecap="round" />
-      <text x="24" y="44" textAnchor="middle" fontSize="7.5" fontWeight="900" fill="#ffffff">
-        CHERUB
-      </text>
+    <svg width={size} height={size} viewBox="0 0 52 52">
+      <circle cx="26" cy="27" r="19" fill="#0284c7" stroke="#bae6fd" strokeWidth="2" />
+      <ellipse cx="26" cy="10" rx="9" ry="2.6" fill="none" stroke="#fde047" strokeWidth="2.4" />
+      <path d="M6,26 Q12,16 17,26 Q12,32 6,26 Z" fill="#ffffff" />
+      <path d="M46,26 Q40,16 35,26 Q40,32 46,26 Z" fill="#ffffff" />
+      <circle cx="26" cy="27" r="10.5" fill="#ffedd5" stroke="#c2410c" strokeWidth="1.1" />
+      <circle cx="22.5" cy="25.5" r="1.6" fill="#1e293b" />
+      <circle cx="29.5" cy="25.5" r="1.6" fill="#1e293b" />
+      <path d="M22,30 Q26,33.5 30,30" fill="none" stroke="#e11d48" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 };
 
+/* ============================================================================
+   ANIMATED STAGE CUTSCENE: POP-OUT SLINGO DEVIL & WINGED CHERUB!
+   ============================================================================ */
+const DevilAndCherubCutscene: React.FC<{
+  mode: 'devil' | 'cherub' | null;
+  subtitle: string;
+  onDismiss: () => void;
+}> = ({ mode, subtitle, onDismiss }) => {
+  if (!mode) return null;
+
+  return (
+    <div
+      onClick={onDismiss}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 70,
+        background:
+          mode === 'devil'
+            ? 'radial-gradient(circle at 50% 55%, rgba(220,38,38,0.48) 0%, rgba(15,4,4,0.72) 100%)'
+            : 'radial-gradient(circle at 50% 45%, rgba(56,189,248,0.45) 0%, rgba(12,28,68,0.68) 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        animation: mode === 'devil' ? 'slingoDevilShake 0.45s ease-in-out' : 'slingoCoverPop 0.3s ease-out',
+      }}
+    >
+      {mode === 'devil' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          {/* Speech Bubble */}
+          <div
+            style={{
+              background: '#fffbeb',
+              color: '#7f1d1d',
+              border: '3px solid #dc2626',
+              borderRadius: 16,
+              padding: '8px 18px',
+              fontWeight: 900,
+              fontSize: 15,
+              boxShadow: '0 6px 20px rgba(0,0,0,0.55)',
+              textAlign: 'center',
+            }}
+          >
+            “MWA-HA-HA-HA!! Half your score is MINE!”
+          </div>
+
+          {/* Big Animated Classic Red Slingo Devil */}
+          <svg width="168" height="164" viewBox="0 0 160 160">
+            {/* Rising Flames */}
+            <path
+              d="M20,155 Q35,105 50,138 Q65,92 80,132 Q95,90 112,135 Q128,104 140,155 Z"
+              fill="#f97316"
+              opacity="0.9"
+            />
+            <path
+              d="M34,155 Q48,120 62,144 Q80,108 98,144 Q114,120 128,155 Z"
+              fill="#fde047"
+            />
+            {/* Pitchfork */}
+            <line x1="130" y1="36" x2="118" y2="146" stroke="#78350f" strokeWidth="5" strokeLinecap="round" />
+            <path
+              d="M118,38 L122,20 M130,40 L134,18 M142,42 L146,22 M118,38 Q130,46 142,42"
+              stroke="#facc15"
+              strokeWidth="3.5"
+              fill="none"
+              strokeLinecap="round"
+            />
+            {/* Curved Horns */}
+            <path d="M48,54 C28,24 44,14 60,40 Z" fill="#fef08a" stroke="#7f1d1d" strokeWidth="2.5" />
+            <path d="M104,54 C124,24 108,14 92,40 Z" fill="#fef08a" stroke="#7f1d1d" strokeWidth="2.5" />
+            {/* Pointed Ears */}
+            <polygon points="36,72 20,62 38,84" fill="#dc2626" stroke="#450a0a" strokeWidth="2" />
+            <polygon points="116,72 132,62 114,84" fill="#dc2626" stroke="#450a0a" strokeWidth="2" />
+            {/* Cape & Torso */}
+            <path d="M44,108 L108,108 L120,152 L32,152 Z" fill="#7f1d1d" stroke="#450a0a" strokeWidth="2.5" />
+            {/* Devil Head */}
+            <ellipse cx="76" cy="76" rx="38" ry="34" fill="#ef4444" stroke="#450a0a" strokeWidth="3" />
+            {/* Sinister Brows & Glowing Yellow Eyes */}
+            <path d="M52,60 L72,69" stroke="#290505" strokeWidth="4.5" strokeLinecap="round" />
+            <path d="M100,60 L80,69" stroke="#290505" strokeWidth="4.5" strokeLinecap="round" />
+            <ellipse cx="63" cy="73" rx="7" ry="5" fill="#fde047" stroke="#450a0a" strokeWidth="1.5" />
+            <circle cx="64" cy="73" r="2.5" fill="#111" />
+            <ellipse cx="89" cy="73" rx="7" ry="5" fill="#fde047" stroke="#450a0a" strokeWidth="1.5" />
+            <circle cx="88" cy="73" r="2.5" fill="#111" />
+            {/* Fanged Laughing Mouth & Goatee */}
+            <path d="M53,88 Q76,110 99,88 Z" fill="#450a0a" stroke="#290505" strokeWidth="2" />
+            <polygon points="59,89 63,97 67,89" fill="#ffffff" />
+            <polygon points="85,89 89,97 93,89" fill="#ffffff" />
+            <polygon points="71,109 76,125 81,109" fill="#111827" />
+          </svg>
+
+          <div
+            style={{
+              background: '#7f1d1d',
+              border: '2px solid #fde047',
+              borderRadius: 8,
+              padding: '5px 14px',
+              color: '#fef08a',
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            {subtitle}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              background: '#f0f9ff',
+              color: '#0369a1',
+              border: '3px solid #facc15',
+              borderRadius: 16,
+              padding: '8px 18px',
+              fontWeight: 900,
+              fontSize: 15,
+              boxShadow: '0 6px 20px rgba(0,0,0,0.45)',
+            }}
+          >
+            👼 SAVED BY THE SLINGO CHERUB!! 🏹
+          </div>
+
+          <svg width="200" height="145" viewBox="0 0 200 145">
+            {/* Winged Cherub with Golden Bow on Left shooting Heart Arrow at Tumbling Devil on Right! */}
+            <ellipse cx="58" cy="24" rx="18" ry="5" fill="none" stroke="#fde047" strokeWidth="3.5" />
+            <path d="M16,66 Q30,42 42,66 Q28,78 16,66 Z" fill="#ffffff" stroke="#bae6fd" strokeWidth="1.5" />
+            <circle cx="58" cy="58" r="21" fill="#ffedd5" stroke="#c2410c" strokeWidth="2" />
+            <circle cx="52" cy="55" r="2.5" fill="#1e293b" />
+            <circle cx="64" cy="55" r="2.5" fill="#1e293b" />
+            <path d="M52,64 Q58,70 64,64" fill="none" stroke="#e11d48" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Golden Bow */}
+            <path d="M80,38 Q98,62 80,86" fill="none" stroke="#facc15" strokeWidth="4" />
+            <line x1="80" y1="38" x2="80" y2="86" stroke="#fef08a" strokeWidth="1.5" />
+            {/* Flying Arrow hitting Devil */}
+            <line x1="88" y1="62" x2="136" y2="62" stroke="#fde047" strokeWidth="3.5" />
+            <polygon points="142,62 132,56 132,68" fill="#ec4899" />
+            {/* Bonked Mini Devil */}
+            <g transform="translate(158, 66) rotate(28)">
+              <circle cx="0" cy="0" r="19" fill="#dc2626" stroke="#450a0a" strokeWidth="2" />
+              <text x="-10" y="4" fontSize="11" fontWeight="900" fill="#fde047">
+                X X
+              </text>
+            </g>
+          </svg>
+
+          <div
+            style={{
+              background: '#0c4a6e',
+              border: '2px solid #fde047',
+              borderRadius: 8,
+              padding: '5px 14px',
+              color: '#fef08a',
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            {subtitle}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AOL_LOUNGE_CHAT_SEED = [
-  { user: 'SlingoQueen04', text: 'gl everyone!! going for a spin-14 full card!' },
-  { user: 'BingoBob_TN', text: 'watch out for the devil on spin 12 lol' },
-  { user: 'CherubAngel', text: '3 jokers in one spin lets gooo!! +1000!' },
+  { user: 'SlingoHost_AOL', text: 'Welcome to AOL Keyword: SLINGO! Watch out for that Devil laugh!' },
+  { user: 'BingoQueen99', text: 'gl everyone!! going for a spin-14 full card!' },
+  { user: 'DialUp_Dave', text: 'the cherub just saved my 14,200 score omg!!' },
 ];
 
 export const SlingoApp: React.FC = () => {
   const { volume, muted } = useSound();
   const effVol = muted ? 0 : volume;
 
-  const [gameMode, setGameMode] = useState<'Classic AOL' | 'Deluxe'>('Classic AOL');
+  const [gameMode, setGameMode] = useState<SlingoGameMode>('Classic AOL');
   const [powerup, setPowerup] = useState<DeluxePowerup>('vision');
   const [shieldCharges, setShieldCharges] = useState<number>(0);
 
@@ -412,41 +640,81 @@ export const SlingoApp: React.FC = () => {
     Array.from({ length: 5 }, (_, c) => ({ type: 'NUMBER', number: c * 15 + 7, used: true }))
   );
   const [spinningCols, setSpinningCols] = useState<boolean[]>([false, false, false, false, false]);
-  const [phase, setPhase] = useState<'ready_to_spin' | 'spinning' | 'marking' | 'paid_spin_prompt' | 'gameover'>(
-    'ready_to_spin'
-  );
+  const [rollingNumbers, setRollingNumbers] = useState<number[]>([7, 22, 37, 52, 67]);
+  const [phase, setPhase] = useState<
+    'ready_to_spin' | 'spinning' | 'marking' | 'paid_spin_prompt' | 'gameover'
+  >('ready_to_spin');
 
-  // Classic options
+  // Options & Modals
   const [autoDaubNumbers, setAutoDaubNumbers] = useState<boolean>(false);
   const [timedMode, setTimedMode] = useState<boolean>(true);
-  const [shotClock, setShotClock] = useState<number>(100); // percentage 0..100
-  const [showLounge, setShowLounge] = useState<boolean>(true);
+  const [shotClock, setShotClock] = useState<number>(100);
+  const [showLounge, setShowLounge] = useState<boolean>(false);
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
   const [showHighScores, setShowHighScores] = useState<boolean>(false);
+  const [showTrophiesModal, setShowTrophiesModal] = useState<boolean>(false);
+  const [bulbTick, setBulbTick] = useState<number>(0);
 
-  // Event banners (Devil / Cherub / Slingo / Full Card / Coin / Joker Bonus)
-  const [eventBanner, setEventBanner] = useState<{
-    kind: 'devil' | 'cherub' | 'slingo' | 'fullcard' | 'bonus' | 'info';
-    title: string;
-    subtitle?: string;
-  } | null>(null);
+  // Stage Cutscene & Banner
+  const [cutscene, setCutscene] = useState<{ mode: 'devil' | 'cherub'; subtitle: string } | null>(null);
+  const [statusBanner, setStatusBanner] = useState<string>('Press START / TAKE SPIN to roll the reels!');
 
   const [highScores, setHighScores] = useState<HighScoreEntry[]>(() =>
     loadLocalFast('xp_slingo_highscores_v1', DEFAULT_HIGH_SCORES)
+  );
+  const [careerStats, setCareerStats] = useState<SlingoCareerStats>(() =>
+    loadLocalFast('xp_slingo_stats_v1', DEFAULT_STATS)
   );
   const [loungeMsgs, setLoungeMsgs] = useState(AOL_LOUNGE_CHAT_SEED);
   const [chatInput, setChatInput] = useState('');
 
   const hydratedRef = useRef(false);
 
-  // Hydrate persistent state from IndexedDB on mount
+  // Chasing casino marquee lights
+  useEffect(() => {
+    const iv = window.setInterval(() => setBulbTick((t) => (t + 1) % 2), 550);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Rolling blurred numbers inside spinning drums
+  useEffect(() => {
+    if (!spinningCols.some(Boolean)) return;
+    const iv = window.setInterval(() => {
+      setRollingNumbers((prev) =>
+        prev.map((val, c) => (spinningCols[c] ? c * 15 + 1 + Math.floor(Math.random() * 15) : val))
+      );
+    }, 55);
+    return () => clearInterval(iv);
+  }, [spinningCols]);
+
+  const updateCareer = useCallback((updater: (prev: SlingoCareerStats) => SlingoCareerStats) => {
+    setCareerStats((prev) => {
+      const next = updater(prev);
+      persistHybrid('xp_slingo_stats_v1', next);
+      return next;
+    });
+  }, []);
+
+  const unlockBadge = useCallback(
+    (badgeId: string) => {
+      updateCareer((prev) => {
+        if (prev.unlockedBadges.includes(badgeId)) return prev;
+        return { ...prev, unlockedBadges: [...prev.unlockedBadges, badgeId] };
+      });
+    },
+    [updateCareer]
+  );
+
+  // Hydrate persistent state
   useEffect(() => {
     let mounted = true;
     (async () => {
       const savedScores = await idbGet<HighScoreEntry[]>('xp_slingo_highscores_v1');
-      if (mounted && savedScores && savedScores.length > 0) {
-        setHighScores(savedScores);
-      }
+      if (mounted && savedScores && savedScores.length > 0) setHighScores(savedScores);
+
+      const savedStats = await idbGet<SlingoCareerStats>('xp_slingo_stats_v1');
+      if (mounted && savedStats) setCareerStats(savedStats);
+
       const savedGame = await idbGet<SavedSlingoGame>('xp_slingo_active_game_v1');
       if (mounted && savedGame && savedGame.spin > 0 && savedGame.phase !== 'gameover') {
         setBoard(savedGame.board);
@@ -469,10 +737,8 @@ export const SlingoApp: React.FC = () => {
     };
   }, []);
 
-  // Persist active game whenever spin/board/score updates
   useEffect(() => {
-    if (!hydratedRef.current) return;
-    if (phase === 'spinning') return;
+    if (!hydratedRef.current || phase === 'spinning') return;
     const snap: SavedSlingoGame = {
       board,
       marked,
@@ -490,15 +756,12 @@ export const SlingoApp: React.FC = () => {
     persistHybrid('xp_slingo_active_game_v1', snap);
   }, [board, marked, spin, maxSpins, score, freeSpins, completedLines, reels, phase, gameMode, powerup, shieldCharges]);
 
-  const showBanner = useCallback(
-    (kind: 'devil' | 'cherub' | 'slingo' | 'fullcard' | 'bonus' | 'info', title: string, subtitle?: string, ms = 2400) => {
-      setEventBanner({ kind, title, subtitle });
-      window.setTimeout(() => {
-        setEventBanner((cur) => (cur?.title === title ? null : cur));
-      }, ms);
-    },
-    []
-  );
+  const triggerCutscene = useCallback((mode: 'devil' | 'cherub', subtitle: string, ms = 2700) => {
+    setCutscene({ mode, subtitle });
+    window.setTimeout(() => {
+      setCutscene((cur) => (cur?.subtitle === subtitle ? null : cur));
+    }, ms);
+  }, []);
 
   const mult = gameMode === 'Deluxe' && powerup === 'multiplier_2x' ? 2 : 1;
 
@@ -508,6 +771,21 @@ export const SlingoApp: React.FC = () => {
       const total = Math.max(0, finalScore + unusedFreeBonus);
       setScore(total);
       setPhase('gameover');
+      setStatusBanner(
+        isFullCard
+          ? `★ FULL CARD BLACKOUT! Final Score: ${total.toLocaleString()} ★`
+          : `Game Over! Final Score: ${total.toLocaleString()} (${finalLinesCount} Slingos)`
+      );
+
+      if (total >= 20000) unlockBadge('high_roller');
+      if (isFullCard) unlockBadge('full_card');
+
+      updateCareer((prev) => ({
+        ...prev,
+        gamesPlayed: prev.gamesPlayed + 1,
+        fullCards: prev.fullCards + (isFullCard ? 1 : 0),
+        highestScore: Math.max(prev.highestScore, total),
+      }));
 
       const entry: HighScoreEntry = {
         name: 'Administrator',
@@ -526,17 +804,16 @@ export const SlingoApp: React.FC = () => {
       setLoungeMsgs((prev) => [
         ...prev.slice(-12),
         {
-          user: 'AOL_Host_Bot',
+          user: 'SlingoHost_AOL',
           text: isFullCard
             ? `🎉 FULL CARD SLINGO!! Administrator scored ${total.toLocaleString()} pts!`
-            : `👏 Game Over! Administrator finished with ${total.toLocaleString()} pts (${finalLinesCount} Slingos).`,
+            : `👏 Game Over! Administrator scored ${total.toLocaleString()} pts (${finalLinesCount} Slingos).`,
         },
       ]);
     },
-    [freeSpins, gameMode, mult]
+    [freeSpins, gameMode, mult, unlockBadge, updateCareer]
   );
 
-  // Evaluate newly formed Slingos & Full Card after marking a square
   const evaluateBoardProgress = useCallback(
     (nextMarked: boolean[][], currentScoreAfterMark: number, currentSpin: number) => {
       const newlyCompleted: { id: string; cells: [number, number][] }[] = [];
@@ -556,32 +833,29 @@ export const SlingoApp: React.FC = () => {
         nextCompletedIds = [...completedLines, ...newlyCompleted.map((l) => l.id)];
         setCompletedLines(nextCompletedIds);
 
+        unlockBadge('first_slingo');
+        if (newlyCompleted.length >= 2) unlockBadge('double_slingo');
+        updateCareer((prev) => ({ ...prev, totalSlingos: prev.totalSlingos + newlyCompleted.length }));
+
         const cellsToFlash = new Set<string>();
         newlyCompleted.forEach((l) => l.cells.forEach(([r, c]) => cellsToFlash.add(`${r},${c}`)));
         setFlashCells(cellsToFlash);
         window.setTimeout(() => setFlashCells(new Set()), 1700);
 
-        slingoSynth.slingoFanfare(effVol);
-        showBanner(
-          'slingo',
-          newlyCompleted.length > 1 ? `${newlyCompleted.length}× DOUBLE SLINGO!!` : 'SLINGO!!',
-          `+${lineBonus.toLocaleString()} Points! (${nextCompletedIds.length}/12 Slingos)`
+        slingoAudio.slingoFanfare(effVol);
+        setStatusBanner(
+          newlyCompleted.length > 1
+            ? `★ ${newlyCompleted.length}× MULTI-SLINGO! +${lineBonus.toLocaleString()} PTS! ★`
+            : `★ SLINGO! +${lineBonus.toLocaleString()} PTS! (${nextCompletedIds.length}/12) ★`
         );
       }
 
-      // Check Full Card (all 25 marked)
       const allCovered = nextMarked.every((row) => row.every(Boolean));
       if (allCovered) {
         const fcBase = FULL_CARD_BONUS_BY_SPIN[Math.max(5, Math.min(22, currentSpin))] || 6500;
         const fcBonus = fcBase * mult;
         const finalWithFc = updatedScore + fcBonus;
-        slingoSynth.fullCardJackpot(effVol);
-        showBanner(
-          'fullcard',
-          '★ FULL CARD SLINGO! ★',
-          `Spin ${currentSpin} Blackout Jackpot: +${fcBonus.toLocaleString()} Points!`,
-          4500
-        );
+        slingoAudio.fullCardJackpot(effVol);
         finalizeGame(finalWithFc, 12, true);
         return { gameEnded: true, score: finalWithFc };
       }
@@ -589,10 +863,9 @@ export const SlingoApp: React.FC = () => {
       setScore(updatedScore);
       return { gameEnded: false, score: updatedScore };
     },
-    [completedLines, effVol, finalizeGame, mult, showBanner]
+    [completedLines, effVol, finalizeGame, mult, unlockBadge, updateCareer]
   );
 
-  // Check if any actionable moves remain on current reels
   const hasRemainingMoves = useCallback(
     (curReels: ReelResult[], curMarked: boolean[][]): boolean => {
       for (let c = 0; c < 5; c++) {
@@ -628,19 +901,24 @@ export const SlingoApp: React.FC = () => {
       const nextSpin = curSpin + 1;
       if (nextSpin >= 17 && freeSpins === 0) {
         setPhase('paid_spin_prompt');
+        setStatusBanner(`Spin ${nextSpin} costs ${PAID_SPIN_COSTS[nextSpin] || 2000} pts — Take Spin or End Game!`);
       } else {
         setPhase('ready_to_spin');
+        setStatusBanner('Press TAKE SPIN for your next roll!');
       }
     },
     [completedLines.length, finalizeGame, freeSpins, maxSpins]
   );
 
-  // Start a new game
-  const startNewGame = (modeOverride?: 'Classic AOL' | 'Deluxe', powerupOverride?: DeluxePowerup) => {
+  const startNewGame = (modeOverride?: SlingoGameMode, powerupOverride?: DeluxePowerup) => {
     const m = modeOverride ?? gameMode;
     const p = powerupOverride ?? powerup;
     const totalSpins = m === 'Deluxe' && p === 'extra_spins' ? 22 : 20;
-    setBoard(generateSlingoBoard());
+    const dailySeed =
+      m === 'Daily Challenge'
+        ? Number(new Date().toISOString().slice(0, 10).replace(/-/g, ''))
+        : undefined;
+    setBoard(generateSlingoBoard(dailySeed));
     setMarked(Array.from({ length: 5 }, () => Array(5).fill(false)));
     setSpin(0);
     setMaxSpins(totalSpins);
@@ -651,47 +929,38 @@ export const SlingoApp: React.FC = () => {
     setShieldCharges(m === 'Deluxe' && p === 'devil_shield' ? 2 : 0);
     setReels(Array.from({ length: 5 }, (_, c) => ({ type: 'NUMBER', number: c * 15 + 1, used: true })));
     setPhase('ready_to_spin');
-    setEventBanner(null);
+    setCutscene(null);
     setShotClock(100);
+    setStatusBanner(
+      m === 'Daily Challenge'
+        ? 'Daily Seeded Card Ready — Press START GAME!'
+        : 'Welcome to Classic Slingo! Press START GAME!'
+    );
   };
 
-  // Roll a single column symbol with authentic Slingo feel
   const rollColumnSymbol = (col: number, curMarked: boolean[][]): ReelResult => {
     const roll = Math.random();
-    // Center reels have classic Devil/Coin/FreeSpin chances; all reels have Numbers & Jokers
-    if (roll < 0.14) {
-      return { type: 'JOKER', used: false };
-    }
-    if (roll < 0.175) {
-      return { type: 'SUPER_JOKER', used: false };
-    }
-    if (roll < 0.235) {
-      return { type: 'COIN', used: true };
-    }
-    if (roll < 0.275) {
-      return { type: 'FREE_SPIN', used: true };
-    }
-    if ((col === 1 || col === 2 || col === 3) && roll < 0.325) {
-      // Devil!
+    if (roll < 0.145) return { type: 'JOKER', used: false };
+    if (roll < 0.18) return { type: 'SUPER_JOKER', used: false };
+    if (roll < 0.24) return { type: 'COIN', used: true };
+    if (roll < 0.28) return { type: 'FREE_SPIN', used: true };
+    if ((col === 1 || col === 2 || col === 3) && roll < 0.34) {
       return { type: 'DEVIL', used: true };
     }
 
-    // Number: ~46% chance to pick one of the uncovered numbers in this column if available so gameplay matches AOL Slingo pacing
     const uncoveredInCol: number[] = [];
     for (let r = 0; r < 5; r++) {
       if (!curMarked[r][col]) uncoveredInCol.push(board[r][col]);
     }
-    if (uncoveredInCol.length > 0 && Math.random() < 0.46) {
+    if (uncoveredInCol.length > 0 && Math.random() < 0.47) {
       const picked = uncoveredInCol[Math.floor(Math.random() * uncoveredInCol.length)];
       return { type: 'NUMBER', number: picked, used: false };
     }
 
     const min = col * 15 + 1;
-    const randomNum = min + Math.floor(Math.random() * 15);
-    return { type: 'NUMBER', number: randomNum, used: false };
+    return { type: 'NUMBER', number: min + Math.floor(Math.random() * 15), used: false };
   };
 
-  // Execute Spin!
   const executeSpin = (confirmedPaid = false) => {
     if (phase === 'spinning' || phase === 'gameover') return;
     const nextSpin = spin + 1;
@@ -700,12 +969,11 @@ export const SlingoApp: React.FC = () => {
     let workingScore = score;
     let workingFreeSpins = freeSpins;
 
-    // Handle Spins 17+ cost or Free Spin token
     if (nextSpin >= 17) {
       if (workingFreeSpins > 0) {
         workingFreeSpins -= 1;
         setFreeSpins(workingFreeSpins);
-        showBanner('info', 'FREE SPIN TOKEN USED!', `Spin ${nextSpin} is FREE! (${workingFreeSpins} Free Spins left)`, 1800);
+        setStatusBanner(`Used 1 Free Spin Token! (${workingFreeSpins} left)`);
       } else {
         const cost = PAID_SPIN_COSTS[nextSpin] || 2000;
         if (!confirmedPaid && phase !== 'paid_spin_prompt') {
@@ -717,43 +985,40 @@ export const SlingoApp: React.FC = () => {
       }
     }
 
+    slingoAudio.spinButton(effVol);
     setSpin(nextSpin);
     setPhase('spinning');
     setSpinningCols([true, true, true, true, true]);
     setShotClock(100);
+    setStatusBanner(`Spinning Reel 1–5 (Spin ${nextSpin} of ${maxSpins})...`);
 
-    // Generate the 5 reel outcomes
     const rolled: ReelResult[] = [0, 1, 2, 3, 4].map((c) => rollColumnSymbol(c, marked));
 
-    // Prevent more than 1 Devil in a single spin (authentic Slingo rule)
+    // Max 1 Devil per spin
     let devilSeen = false;
     let devilCol = -1;
     for (let c = 0; c < 5; c++) {
       if (rolled[c].type === 'DEVIL') {
-        if (devilSeen) {
-          rolled[c] = { type: 'COIN', used: true };
-        } else {
+        if (devilSeen) rolled[c] = { type: 'COIN', used: true };
+        else {
           devilSeen = true;
           devilCol = c;
         }
       }
     }
 
-    // ~28% chance the Cherub appears on an adjacent reel to rescue you from the Devil!
     let cherubSaved = false;
-    if (devilSeen && Math.random() < 0.3) {
+    if (devilSeen && Math.random() < 0.32) {
       const otherCol = (devilCol + 2) % 5;
       rolled[otherCol] = { type: 'CHERUB', used: true };
       cherubSaved = true;
     }
 
-    // Tick sound while reels spin
-    const tickIv = window.setInterval(() => slingoSynth.reelTick(effVol), 75);
+    const tickIv = window.setInterval(() => slingoAudio.reelTick(effVol), 70);
 
-    // Stop reels sequentially left to right
     [0, 1, 2, 3, 4].forEach((colIdx) => {
       window.setTimeout(() => {
-        slingoSynth.reelStop(colIdx, effVol);
+        slingoAudio.reelStop(colIdx, effVol);
         setReels((prev) => {
           const copy = [...prev];
           copy[colIdx] = rolled[colIdx];
@@ -767,7 +1032,6 @@ export const SlingoApp: React.FC = () => {
 
         if (colIdx === 4) {
           clearInterval(tickIv);
-          // Process instant symbols: Coins, Free Spins, Multi-Joker Bonus, Devil / Cherub!
           let postSpinScore = workingScore;
           let addedFree = 0;
           let coinCount = 0;
@@ -781,53 +1045,64 @@ export const SlingoApp: React.FC = () => {
 
           if (coinCount > 0) {
             postSpinScore += coinCount * 1000 * mult;
-            slingoSynth.coin(effVol);
+            slingoAudio.coin(effVol);
           }
           if (addedFree > 0) {
             workingFreeSpins += addedFree;
             setFreeSpins(workingFreeSpins);
-            slingoSynth.coin(effVol);
+            slingoAudio.coin(effVol);
           }
           if (jokerCount >= 3) {
             const jb = (jokerCount === 3 ? 1000 : jokerCount === 4 ? 2500 : 5000) * mult;
             postSpinScore += jb;
-            slingoSynth.joker(effVol);
-            showBanner('bonus', `${jokerCount} JOKERS SPIN BONUS!`, `+${jb.toLocaleString()} Bonus Points!`);
+            slingoAudio.joker(effVol);
           } else if (jokerCount > 0) {
-            slingoSynth.joker(effVol);
+            slingoAudio.joker(effVol);
           }
 
           if (devilSeen) {
+            unlockBadge('devil_survivor');
+            updateCareer((prev) => ({ ...prev, devilsMet: prev.devilsMet + 1 }));
+
             if (cherubSaved) {
               const rescueBonus = 500 * mult;
               postSpinScore += rescueBonus;
-              slingoSynth.cherubSave(effVol);
-              showBanner('cherub', '👼 SAVED BY THE CHERUB! 🏹', `The Cherub shot the Devil! Score safe +${rescueBonus} pts!`, 3000);
+              unlockBadge('cherub_blessed');
+              updateCareer((prev) => ({ ...prev, cherubRescues: prev.cherubRescues + 1 }));
+              slingoAudio.cherubSave(effVol);
+              triggerCutscene('cherub', `Score Protected +${rescueBonus} Cherub Bonus!`);
             } else if (shieldCharges > 0) {
               setShieldCharges((s) => s - 1);
-              slingoSynth.cherubSave(effVol);
-              showBanner('cherub', '🛡️ DEVIL SHIELD BLOCKED!', 'Your Deluxe Shield blocked the Slingo Devil!', 2600);
+              unlockBadge('cherub_blessed');
+              slingoAudio.cherubSave(effVol);
+              triggerCutscene('cherub', 'Your Deluxe Devil Shield deflected the Devil!');
             } else {
-              postSpinScore = Math.floor(postSpinScore / 2);
-              slingoSynth.devilLaugh(effVol);
-              showBanner('devil', '😈 MWAHAHA! THE SLINGO DEVIL!', 'Your score was cut in HALF!', 2800);
+              const lostPts = Math.ceil(postSpinScore / 2);
+              if (gameMode === 'Deluxe' && powerup === 'bounce_back') {
+                // Bounce-Back recovers half of the Devil's theft!
+                postSpinScore = postSpinScore - Math.floor(lostPts / 2);
+              } else {
+                postSpinScore = Math.floor(postSpinScore / 2);
+              }
+              slingoAudio.devilLaugh(effVol);
+              triggerCutscene(
+                'devil',
+                gameMode === 'Deluxe' && powerup === 'bounce_back'
+                  ? `Devil stole points (Bounce-Back saved 50%!)`
+                  : `Score Sliced in HALF! (-${lostPts.toLocaleString()} pts)`
+              );
             }
-          } else if (coinCount > 0 && jokerCount < 3) {
-            showBanner('bonus', `🪙 GOLD COIN${coinCount > 1 ? 'S' : ''}!`, `+${(coinCount * 1000 * mult).toLocaleString()} Points!`, 1600);
           }
 
-          // Mark non-matching NUMBER reels as already "used" so player isn't stuck
           let workingMarked = marked.map((row) => [...row]);
           const processedReels = rolled.map((r, c) => {
             if (r.type === 'NUMBER') {
               const matchRow = board.findIndex((row, rIdx) => row[c] === r.number && !workingMarked[rIdx][c]);
-              if (matchRow === -1) {
-                return { ...r, used: true };
-              }
+              if (matchRow === -1) return { ...r, used: true };
               if (autoDaubNumbers) {
                 workingMarked[matchRow][c] = true;
                 postSpinScore += 200 * mult;
-                slingoSynth.daub(effVol);
+                slingoAudio.daub(effVol);
                 return { ...r, used: true };
               }
             }
@@ -846,69 +1121,56 @@ export const SlingoApp: React.FC = () => {
 
           if (hasRemainingMoves(processedReels, workingMarked)) {
             setPhase('marking');
+            setStatusBanner('Click flashing numbers or place your Jokers on the card!');
           } else {
             advanceAfterSpinComplete(nextSpin, evalRes.score);
           }
         }
-      }, 280 + colIdx * 170);
+      }, 260 + colIdx * 165);
     });
   };
 
-  // Shot-clock countdown during 'marking' phase when timedMode is ON
+  // Shot-clock countdown during 'marking'
   useEffect(() => {
     if (phase !== 'marking' || !timedMode) return;
     const iv = window.setInterval(() => {
       setShotClock((prev) => {
         if (prev <= 2) {
           clearInterval(iv);
-          // Shot clock expired -> forfeit remaining placements on this spin (authentic timed AOL Slingo!)
           setReels((rPrev) => rPrev.map((r) => ({ ...r, used: true })));
-          showBanner('info', '⏰ TIME UP ON SPIN!', 'Click TAKE SPIN for your next roll!', 1600);
+          setStatusBanner('⏰ Time expired on spin! Press TAKE SPIN.');
           advanceAfterSpinComplete(spin, score);
           return 0;
         }
-        return prev - 1.5;
+        return prev - 1.4;
       });
     }, 150);
     return () => clearInterval(iv);
-  }, [phase, timedMode, spin, score, advanceAfterSpinComplete, showBanner]);
+  }, [phase, timedMode, spin, score, advanceAfterSpinComplete]);
 
-  // Handle clicking a cell [r, c] on the 5x5 Slingo matrix
   const handleCellClick = (r: number, c: number) => {
-    if (phase !== 'marking') return;
-    if (marked[r][c]) return;
+    if (phase !== 'marking' || marked[r][c]) return;
 
     const colReel = reels[c];
     let consumedReelCol = -1;
 
-    // Priority 1: Exact NUMBER match in column c
     if (!colReel.used && colReel.type === 'NUMBER' && colReel.number === board[r][c]) {
       consumedReelCol = c;
-    }
-    // Priority 2: Column JOKER in column c
-    else if (!colReel.used && colReel.type === 'JOKER') {
+    } else if (!colReel.used && colReel.type === 'JOKER') {
       consumedReelCol = c;
-    }
-    // Priority 3: Any unused SUPER_JOKER across any of the 5 reels
-    else {
+    } else {
       const sjCol = reels.findIndex((rl) => !rl.used && rl.type === 'SUPER_JOKER');
-      if (sjCol !== -1) {
-        consumedReelCol = sjCol;
-      }
+      if (sjCol !== -1) consumedReelCol = sjCol;
     }
 
     if (consumedReelCol === -1) return;
 
-    slingoSynth.daub(effVol);
+    slingoAudio.daub(effVol);
 
     const nextMarked = marked.map((row, rIdx) =>
       row.map((val, cIdx) => (rIdx === r && cIdx === c ? true : val))
     );
-    const nextReels = reels.map((rl, idx) => {
-      if (idx === consumedReelCol) return { ...rl, used: true };
-      return rl;
-    });
-    // Also clean up any JOKER whose column is now completely full, or NUMBER that was just covered by a Super Joker
+    const nextReels = reels.map((rl, idx) => (idx === consumedReelCol ? { ...rl, used: true } : rl));
     const cleanedReels = nextReels.map((rl, idx) => {
       if (rl.used) return rl;
       if (rl.type === 'NUMBER') {
@@ -926,9 +1188,7 @@ export const SlingoApp: React.FC = () => {
       return rl;
     });
 
-    const gained = 200 * mult;
-    const updatedScore = score + gained;
-
+    const updatedScore = score + 200 * mult;
     setMarked(nextMarked);
     setReels(cleanedReels);
 
@@ -940,7 +1200,6 @@ export const SlingoApp: React.FC = () => {
     }
   };
 
-  // Compute which cells are currently clickable & which cell is recommended by Deluxe "Vision"
   const hasSuperJokerActive =
     phase === 'marking' && reels.some((rl) => !rl.used && rl.type === 'SUPER_JOKER');
 
@@ -954,7 +1213,6 @@ export const SlingoApp: React.FC = () => {
     return false;
   };
 
-  // Vision helper: score each clickable wild cell by how close its lines are to Slingo!
   const getBestVisionCells = (): Set<string> => {
     const set = new Set<string>();
     if (phase !== 'marking' || !(gameMode === 'Deluxe' && powerup === 'vision')) return set;
@@ -966,13 +1224,12 @@ export const SlingoApp: React.FC = () => {
     for (let r = 0; r < 5; r++) {
       for (let c = 0; c < 5; c++) {
         if (!isCellClickable(r, c)) continue;
-        // Skip if it's an exact number match (that one is mandatory anyway)
         if (!reels[c].used && reels[c].type === 'NUMBER' && reels[c].number === board[r][c]) continue;
         let weight = r === 2 && c === 2 ? 3 : r === c || r + c === 4 ? 2 : 1;
         for (const line of ALL_SLINGO_LINES) {
           if (line.cells.some(([lr, lc]) => lr === r && lc === c)) {
             const countMarked = line.cells.filter(([lr, lc]) => marked[lr][lc]).length;
-            if (countMarked === 4) weight += 50; // Instant SLINGO!
+            if (countMarked === 4) weight += 50;
             else if (countMarked === 3) weight += 12;
             else weight += countMarked * 2;
           }
@@ -999,7 +1256,7 @@ export const SlingoApp: React.FC = () => {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        background: 'radial-gradient(circle at 50% 25%, #1e3a8a 0%, #0f1f56 62%, #070e2c 100%)',
+        background: 'radial-gradient(circle at 50% 35%, #5c0a14 0%, #310409 65%, #180205 100%)',
         color: '#fff',
         fontFamily: 'Tahoma, Verdana, sans-serif',
         fontSize: 11,
@@ -1010,30 +1267,42 @@ export const SlingoApp: React.FC = () => {
       }}
     >
       <style>{`
-        @keyframes slingoPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 8px #facc15; }
-          50% { transform: scale(1.05); box-shadow: 0 0 18px #fde047, inset 0 0 8px #fef08a; }
+        @keyframes slingoTileGlow {
+          0%, 100% { box-shadow: inset 0 0 0 2px #dc2626, 0 0 8px #fde047; transform: scale(1); }
+          50% { box-shadow: inset 0 0 0 3px #facc15, 0 0 16px #fef08a; transform: scale(1.03); }
         }
-        @keyframes slingoSpinBlur {
-          0% { transform: translateY(-10px); opacity: 0.65; }
-          50% { transform: translateY(10px); opacity: 0.95; }
-          100% { transform: translateY(-10px); opacity: 0.65; }
+        @keyframes slingoCoverPop {
+          0% { transform: scale(0.45); opacity: 0.4; }
+          80% { transform: scale(1.08); }
+          100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes slingoBtnGlow {
-          0%, 100% { box-shadow: 0 0 10px rgba(250, 204, 21, 0.55), inset 0 1px 0 #fff; }
-          50% { box-shadow: 0 0 22px rgba(250, 204, 21, 0.95), inset 0 1px 0 #fff; }
+        @keyframes slingoStarSpin {
+          0% { transform: scale(0.95) rotate(-8deg); }
+          100% { transform: scale(1.08) rotate(8deg); }
+        }
+        @keyframes slingoDevilShake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-8px) rotate(-1deg); }
+          40% { transform: translateX(8px) rotate(1deg); }
+          60% { transform: translateX(-6px); }
+          80% { transform: translateX(6px); }
+        }
+        @keyframes slingoSpinPulse {
+          0%, 100% { box-shadow: 0 4px 10px rgba(0,0,0,0.6), 0 0 10px rgba(250,204,21,0.55); }
+          50% { box-shadow: 0 4px 14px rgba(0,0,0,0.7), 0 0 22px rgba(253,224,71,0.95); }
         }
       `}</style>
 
-      {/* Top Classic XP Game Menu Bar */}
-      <div className="xp-menubar" style={{ color: '#000', flexShrink: 0 }}>
+      {/* Top Classic XP Menu Bar */}
+      <div className="xp-menubar" style={{ color: '#000', flexShrink: 0, flexWrap: 'wrap' }}>
         <span className="xp-menu-item" onClick={() => startNewGame()}>
           New Game
         </span>
         <span
           className="xp-menu-item"
           onClick={() => {
-            const nextMode = gameMode === 'Classic AOL' ? 'Deluxe' : 'Classic AOL';
+            const order: SlingoGameMode[] = ['Classic AOL', 'Deluxe', 'Daily Challenge'];
+            const nextMode = order[(order.indexOf(gameMode) + 1) % order.length];
             setGameMode(nextMode);
             startNewGame(nextMode, powerup);
           }}
@@ -1041,258 +1310,270 @@ export const SlingoApp: React.FC = () => {
           Mode: <b>{gameMode}</b>
         </span>
         <span className="xp-menu-item" onClick={() => setAutoDaubNumbers((v) => !v)}>
-          Auto-Match: <b>{autoDaubNumbers ? 'ON' : 'OFF'}</b>
+          Auto-Daub: <b>{autoDaubNumbers ? 'ON' : 'OFF'}</b>
         </span>
         <span className="xp-menu-item" onClick={() => setTimedMode((v) => !v)}>
-          Shot Clock: <b>{timedMode ? 'ON' : 'Relaxed'}</b>
+          Timer: <b>{timedMode ? 'ON' : 'Relaxed'}</b>
         </span>
         <span className="xp-menu-item" onClick={() => setShowHighScores(true)}>
           High Scores
         </span>
+        <span className="xp-menu-item" onClick={() => setShowTrophiesModal(true)}>
+          Trophies ({careerStats.unlockedBadges.length}/{BADGE_DEFINITIONS.length})
+        </span>
         <span className="xp-menu-item" onClick={() => setShowLounge((v) => !v)}>
-          AOL Lounge
+          AOL Chat {showLounge ? '▾' : '▸'}
+        </span>
+        <span
+          className="xp-menu-item"
+          style={{ color: '#991b1b', fontWeight: 700 }}
+          onClick={() => {
+            slingoAudio.devilLaugh(Math.max(0.5, effVol));
+            triggerCutscene('devil', 'Sound Check: Authentic Slingo Devil Laugh!', 2300);
+          }}
+          title="Preview the Slingo Devil Laugh & Cutscene!"
+        >
+          😈 Hear Devil Laugh
         </span>
         <span className="xp-menu-item" onClick={() => setShowRulesModal(true)}>
-          How to Play & Paytable
+          Paytable & Rules
         </span>
       </div>
 
-      {/* Top Gold-Trimmed Marquee Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '6px 14px',
-          background: 'linear-gradient(180deg, #172554 0%, #0b1536 100%)',
-          borderBottom: '2px solid #f59e0b',
-          flexShrink: 0,
-          gap: 10,
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* Jewel-Colored 3D S-L-I-N-G-O Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          {[
-            { ch: 'S', bg: '#ef4444' },
-            { ch: 'L', bg: '#f59e0b' },
-            { ch: 'I', bg: '#10b981' },
-            { ch: 'N', bg: '#3b82f6' },
-            { ch: 'G', bg: '#8b5cf6' },
-            { ch: 'O', bg: '#ec4899' },
-          ].map((b, i) => (
-            <div
-              key={i}
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                background: `radial-gradient(circle at 35% 30%, #fff 0%, ${b.bg} 42%, #111827 100%)`,
-                border: '2px solid #fde047',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: 14,
-                color: '#fff',
-                textShadow: '0 1px 2px #000',
-              }}
-            >
-              {b.ch}
-            </div>
-          ))}
-          <span
-            style={{
-              marginLeft: 6,
-              fontSize: 11,
-              fontWeight: 800,
-              color: '#fde047',
-              letterSpacing: 0.6,
-            }}
-          >
-            {gameMode === 'Classic AOL' ? 'CLASSIC AOL EDITION' : 'DELUXE EDITION'}
-          </span>
-        </div>
-
-        {/* Digital LED Score, Spin, Free Spins, High Score Counters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              background: '#050816',
-              border: '2px solid #d97706',
-              borderRadius: 5,
-              padding: '2px 10px',
-              textAlign: 'center',
-              minWidth: 106,
-            }}
-          >
-            <div style={{ fontSize: 9, color: '#fbbf24', fontWeight: 800 }}>SCORE</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: '#4ade80', fontFamily: "'Courier New', monospace" }}>
-              {score.toLocaleString()}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: '#050816',
-              border: '2px solid #60a5fa',
-              borderRadius: 5,
-              padding: '2px 9px',
-              textAlign: 'center',
-              minWidth: 74,
-            }}
-          >
-            <div style={{ fontSize: 9, color: '#93c5fd', fontWeight: 800 }}>SPIN</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: '#ffffff', fontFamily: "'Courier New', monospace" }}>
-              {spin}/{maxSpins}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: '#050816',
-              border: '2px solid #34d399',
-              borderRadius: 5,
-              padding: '2px 9px',
-              textAlign: 'center',
-              minWidth: 72,
-            }}
-          >
-            <div style={{ fontSize: 9, color: '#6ee7b7', fontWeight: 800 }}>FREE SPINS</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: '#fde047', fontFamily: "'Courier New', monospace" }}>
-              {freeSpins}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: '#050816',
-              border: '2px solid #a855f7',
-              borderRadius: 5,
-              padding: '2px 9px',
-              textAlign: 'center',
-              minWidth: 92,
-              cursor: 'pointer',
-            }}
-            onClick={() => setShowHighScores(true)}
-            title="Click to view Hall of Fame"
-          >
-            <div style={{ fontSize: 9, color: '#d8b4fe', fontWeight: 800 }}>BEST SCORE</div>
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#facc15', fontFamily: "'Courier New', monospace" }}>
-              {(highScores[0]?.score || 0).toLocaleString()}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Cabinet Stage */}
+      {/* Main Authentic AOL / Funkitron Slingo Cabinet */}
       <div
         style={{
           flex: 1,
           display: 'flex',
           gap: 10,
-          padding: 10,
+          padding: '10px 12px',
           minHeight: 0,
           overflow: 'auto',
           alignItems: 'stretch',
+          justifyContent: 'center',
         }}
       >
-        {/* Left Column: 12-Step SLINGO Ladder + Deluxe Powerup Selector */}
+        {/* LEFT CONSOLE TOWER — Classic Sculpted Burgundy & Gold Slingo Control Panel */}
         <div
           style={{
-            width: 158,
+            width: 192,
             flexShrink: 0,
-            background: 'linear-gradient(180deg, #162456 0%, #0c1638 100%)',
-            border: '2px solid #f59e0b',
-            borderRadius: 8,
-            padding: 8,
+            background: 'linear-gradient(180deg, #7f1d1d 0%, #450a0a 60%, #2a0404 100%)',
+            border: '3px solid #eab308',
+            borderRadius: 10,
+            boxShadow: 'inset 0 0 0 2px #991b1b, 0 6px 18px rgba(0,0,0,0.6)',
+            padding: '10px 10px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            gap: 6,
+            gap: 8,
           }}
         >
-          <div>
+          {/* Arched 3D Golden SLINGO Marquee Logo */}
+          <div
+            style={{
+              background: 'radial-gradient(circle at 50% 40%, #1e3a8a 0%, #0f172a 100%)',
+              border: '2.5px solid #fde047',
+              borderRadius: 8,
+              padding: '6px 4px',
+              textAlign: 'center',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
+              position: 'relative',
+            }}
+          >
             <div
               style={{
-                textAlign: 'center',
+                fontFamily: "'Arial Black', Impact, sans-serif",
+                fontSize: 24,
                 fontWeight: 900,
-                color: '#fde047',
-                fontSize: 11,
-                borderBottom: '1px solid rgba(250,204,21,0.35)',
-                paddingBottom: 4,
-                marginBottom: 5,
+                letterSpacing: 1.5,
+                background: 'linear-gradient(180deg, #ffffff 0%, #fde047 45%, #f97316 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.85))',
+                lineHeight: 1.05,
               }}
             >
-              ★ SLINGO LADDER ★
+              SLINGO
             </div>
-
-            {/* Full Card Top Jackpot Box */}
-            <div
-              style={{
-                padding: '4px 6px',
-                borderRadius: 4,
-                marginBottom: 4,
-                background:
-                  completedLines.length === 12
-                    ? 'linear-gradient(90deg, #f59e0b, #fde047)'
-                    : 'rgba(239, 68, 68, 0.28)',
-                border: '1px solid #f59e0b',
-                color: completedLines.length === 12 ? '#000' : '#fde047',
-                fontWeight: 900,
-                fontSize: 10,
-                display: 'flex',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span>FULL CARD</span>
-              <span>
-                {(
-                  (FULL_CARD_BONUS_BY_SPIN[Math.max(5, Math.min(22, spin || 5))] || 6500) * mult
-                ).toLocaleString()}
-              </span>
-            </div>
-
-            {/* 12 Slingos Meter */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {[12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => {
-                const reached = completedLines.length >= n;
-                return (
-                  <div
-                    key={n}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '1.5px 6px',
-                      borderRadius: 3,
-                      fontSize: 10,
-                      fontWeight: reached ? 800 : 600,
-                      background: reached
-                        ? 'linear-gradient(90deg, #16a34a 0%, #22c55e 100%)'
-                        : 'rgba(255,255,255,0.06)',
-                      color: reached ? '#fff' : '#cbd5e1',
-                    }}
-                  >
-                    <span>{n} Slingo{n > 1 ? 's' : ''}</span>
-                    <span>{(n * 1000 * mult).toLocaleString()}</span>
-                  </div>
-                );
-              })}
+            <div style={{ fontSize: 9, fontWeight: 800, color: '#93c5fd', letterSpacing: 1 }}>
+              {gameMode.toUpperCase()}
             </div>
           </div>
 
-          {/* Deluxe Powerup Box */}
+          {/* Recessed Digital Red/Gold LED Counters: SCORE & SPIN */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div
+              style={{
+                background: '#090406',
+                borderTop: '2px solid #290d0d',
+                borderLeft: '2px solid #290d0d',
+                borderRight: '2px solid #d97706',
+                borderBottom: '2px solid #d97706',
+                borderRadius: 4,
+                padding: '4px 8px',
+              }}
+            >
+              <div style={{ fontSize: 9, color: '#fde047', fontWeight: 800, letterSpacing: 0.8 }}>SCORE</div>
+              <div
+                style={{
+                  fontSize: 21,
+                  fontWeight: 900,
+                  color: '#ff3b30',
+                  fontFamily: "'Courier New', monospace",
+                  textAlign: 'right',
+                  textShadow: '0 0 8px rgba(255,59,48,0.65)',
+                  lineHeight: 1.1,
+                }}
+              >
+                {score.toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div
+                style={{
+                  background: '#090406',
+                  border: '2px inset #78350f',
+                  borderRadius: 4,
+                  padding: '4px 6px',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 9, color: '#fde047', fontWeight: 800 }}>SPIN</div>
+                <div
+                  style={{
+                    fontSize: 19,
+                    fontWeight: 900,
+                    color: '#fbbf24',
+                    fontFamily: "'Courier New', monospace",
+                  }}
+                >
+                  {spin}/{maxSpins}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: '#090406',
+                  border: '2px inset #78350f',
+                  borderRadius: 4,
+                  padding: '4px 6px',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 9, color: '#93c5fd', fontWeight: 800 }}>SLINGOS</div>
+                <div
+                  style={{
+                    fontSize: 19,
+                    fontWeight: 900,
+                    color: '#38bdf8',
+                    fontFamily: "'Courier New', monospace",
+                  }}
+                >
+                  {completedLines.length}/12
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vertical Segmented Tube Timer + Free Spin Coin Stack */}
           <div
             style={{
-              borderTop: '1px solid rgba(255,255,255,0.18)',
-              paddingTop: 6,
-              fontSize: 10,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 8,
+              background: 'rgba(0,0,0,0.32)',
+              border: '1px solid rgba(250,204,21,0.35)',
+              borderRadius: 6,
+              padding: 7,
             }}
           >
-            <div style={{ color: '#93c5fd', fontWeight: 800, marginBottom: 3 }}>
-              {gameMode === 'Deluxe' ? '⚡ Deluxe Powerup:' : '🕹️ Classic Options:'}
+            {/* Segmented TIME Meter */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#fde047' }}>TIME</span>
+              <div
+                style={{
+                  width: 24,
+                  height: 68,
+                  background: '#09090b',
+                  border: '2px inset #713f12',
+                  borderRadius: 4,
+                  padding: 2,
+                  display: 'flex',
+                  flexDirection: 'column-reverse',
+                  gap: 2,
+                }}
+              >
+                {Array.from({ length: 8 }, (_, seg) => {
+                  const active = !timedMode || shotClock >= (seg + 1) * 12;
+                  const segColor = seg < 2 ? '#ef4444' : seg < 5 ? '#facc15' : '#22c55e';
+                  return (
+                    <div
+                      key={seg}
+                      style={{
+                        flex: 1,
+                        borderRadius: 1,
+                        background: active ? segColor : '#1f2937',
+                        boxShadow: active ? `0 0 4px ${segColor}` : 'none',
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-            {gameMode === 'Deluxe' ? (
+
+            {/* Free Spin Gold Token Stack */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#fde047' }}>FREE SPINS</span>
+              <div
+                style={{
+                  width: 44,
+                  height: 68,
+                  background: '#09090b',
+                  border: '2px inset #713f12',
+                  borderRadius: 4,
+                  display: 'flex',
+                  flexDirection: 'column-reverse',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  padding: 4,
+                  gap: 2,
+                }}
+              >
+                {freeSpins === 0 ? (
+                  <span style={{ fontSize: 10, color: '#6b7280', margin: 'auto' }}>0</span>
+                ) : (
+                  Array.from({ length: Math.min(6, freeSpins) }, (_, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        width: 32,
+                        height: 8,
+                        borderRadius: 4,
+                        background: 'linear-gradient(90deg, #b45309 0%, #fde047 50%, #b45309 100%)',
+                        border: '1px solid #78350f',
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Deluxe Powerup Selector (when in Deluxe mode) */}
+          {gameMode === 'Deluxe' && (
+            <div
+              style={{
+                background: 'rgba(15, 23, 42, 0.72)',
+                border: '1px solid #f59e0b',
+                borderRadius: 6,
+                padding: 6,
+              }}
+            >
+              <div style={{ fontSize: 9, fontWeight: 800, color: '#fde047', marginBottom: 3 }}>
+                DELUXE POWERUP {powerup === 'devil_shield' && `(${shieldCharges}🛡)`}
+              </div>
               <select
                 value={powerup}
                 onChange={(e) => {
@@ -1302,654 +1583,631 @@ export const SlingoApp: React.FC = () => {
                 }}
                 style={{
                   width: '100%',
-                  background: '#0f172a',
-                  color: '#fde047',
-                  border: '1px solid #f59e0b',
-                  borderRadius: 4,
-                  padding: '3px 4px',
                   fontSize: 10,
-                  fontWeight: 700,
+                  padding: '2px 4px',
+                  borderRadius: 3,
+                  background: '#1e293b',
+                  color: '#fff',
+                  border: '1px solid #fbbf24',
                 }}
               >
-                <option value="vision">🔮 Slingo Vision (Best Move)</option>
+                <option value="vision">🔮 Slingo Vision (Best Joker)</option>
                 <option value="devil_shield">🛡️ Devil Shield (2 Blocks)</option>
-                <option value="multiplier_2x">✨ 2× Score Multiplier</option>
-                <option value="extra_spins">🎰 22 Spins Extended</option>
+                <option value="multiplier_2x">⚡ 2× All Points Multiplier</option>
+                <option value="bounce_back">🪃 Devil Bounce-Back (Save 50%)</option>
+                <option value="extra_spins">🎰 22-Spin Marathon</option>
               </select>
-            ) : (
+            </div>
+          )}
+
+          {/* Big Tactile Glossy Red & Gold START / TAKE SPIN Button! */}
+          <div>
+            {phase === 'gameover' ? (
               <button
-                onClick={() => {
-                  setGameMode('Deluxe');
-                  startNewGame('Deluxe', powerup);
-                }}
+                onClick={() => startNewGame()}
                 style={{
                   width: '100%',
-                  padding: '4px 6px',
-                  borderRadius: 4,
-                  border: '1px solid #60a5fa',
-                  background: '#1d4ed8',
+                  padding: '11px 8px',
+                  borderRadius: 24,
+                  border: '3px solid #fde047',
+                  background: 'radial-gradient(circle at 50% 25%, #4ade80 0%, #16a34a 60%, #14532d 100%)',
                   color: '#fff',
-                  fontWeight: 700,
-                  fontSize: 10,
+                  fontWeight: 900,
+                  fontSize: 14,
                   cursor: 'pointer',
+                  textShadow: '0 1px 2px #000',
+                  animation: 'slingoSpinPulse 1.4s infinite',
                 }}
               >
-                Switch to Deluxe Powerups
+                ▶ PLAY AGAIN
               </button>
-            )}
-            {shieldCharges > 0 && (
-              <div style={{ marginTop: 4, color: '#6ee7b7', fontWeight: 700 }}>
-                🛡️ Shields Active: {shieldCharges}
+            ) : phase === 'paid_spin_prompt' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <button
+                  onClick={() => executeSpin(true)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 6px',
+                    borderRadius: 18,
+                    border: '2.5px solid #fde047',
+                    background: 'linear-gradient(180deg, #ef4444 0%, #991b1b 100%)',
+                    color: '#fef08a',
+                    fontWeight: 900,
+                    fontSize: 11,
+                    cursor: 'pointer',
+                  }}
+                >
+                  BUY SPIN {nextSpinNum} (-{nextSpinCost})
+                </button>
+                <button
+                  onClick={() => finalizeGame(score, completedLines.length, false)}
+                  style={{
+                    width: '100%',
+                    padding: '5px 6px',
+                    borderRadius: 12,
+                    border: '1px solid #9ca3af',
+                    background: '#374151',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
+                >
+                  CASH OUT ({score.toLocaleString()})
+                </button>
               </div>
+            ) : (
+              <button
+                disabled={phase !== 'ready_to_spin'}
+                onClick={() => executeSpin(false)}
+                style={{
+                  width: '100%',
+                  padding: '12px 8px',
+                  borderRadius: 26,
+                  border: '3px solid #fde047',
+                  background:
+                    phase === 'ready_to_spin'
+                      ? 'radial-gradient(circle at 50% 25%, #ff6b6b 0%, #dc2626 55%, #7f1d1d 100%)'
+                      : 'linear-gradient(180deg, #6b7280 0%, #374151 100%)',
+                  color: phase === 'ready_to_spin' ? '#fffbeb' : '#d1d5db',
+                  fontWeight: 900,
+                  fontSize: 14,
+                  letterSpacing: 0.6,
+                  cursor: phase === 'ready_to_spin' ? 'pointer' : 'not-allowed',
+                  textShadow: '0 2px 2px rgba(0,0,0,0.8)',
+                  animation: phase === 'ready_to_spin' ? 'slingoSpinPulse 1.3s infinite' : 'none',
+                }}
+              >
+                {spin === 0
+                  ? '● START GAME'
+                  : phase === 'spinning'
+                  ? 'SPINNING...'
+                  : phase === 'marking'
+                  ? 'PLACE TILES!'
+                  : '● TAKE SPIN'}
+              </button>
             )}
           </div>
         </div>
 
-        {/* Center Stage: 5x5 Slingo Matrix + 5 Slot Reels + Spin Controls */}
+        {/* CENTER BEVELED GOLD & ROYAL-BLUE CLASSIC SLINGO MACHINE */}
         <div
           style={{
-            flex: 1,
-            minWidth: 325,
+            flex: '0 1 430px',
+            minWidth: 330,
+            background: 'linear-gradient(180deg, #1e3a8a 0%, #172554 65%, #0f172a 100%)',
+            border: '4px solid #eab308',
+            borderRadius: 12,
+            boxShadow: 'inset 0 0 0 2px #93c5fd, 0 8px 24px rgba(0,0,0,0.65)',
+            padding: '8px 12px 10px 12px',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'linear-gradient(180deg, #1e3a8a 0%, #112259 100%)',
-            border: '3px solid #facc15',
-            borderRadius: 10,
-            padding: '8px 12px',
-            boxShadow: 'inset 0 0 24px rgba(0,0,0,0.55)',
             position: 'relative',
           }}
         >
-          {/* Floating Animated Event Banner (Devil / Cherub / Slingo / Jackpot) */}
-          {eventBanner && (
+          {/* Top Chasing Casino Marquee Light Bar + Status Ticker */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#090d1f',
+              border: '2px solid #ca8a04',
+              borderRadius: 6,
+              padding: '4px 10px',
+              marginBottom: 6,
+              gap: 6,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: bulbTick === 0 ? '#fde047' : '#ef4444',
+                boxShadow: '0 0 6px #fde047',
+                flexShrink: 0,
+              }}
+            />
             <div
               style={{
-                position: 'absolute',
-                top: 10,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 30,
-                padding: '7px 18px',
-                borderRadius: 8,
-                border: '2px solid #fff',
-                background:
-                  eventBanner.kind === 'devil'
-                    ? 'linear-gradient(180deg, #dc2626 0%, #7f1d1d 100%)'
-                    : eventBanner.kind === 'cherub'
-                    ? 'linear-gradient(180deg, #0ea5e9 0%, #0369a1 100%)'
-                    : eventBanner.kind === 'fullcard'
-                    ? 'linear-gradient(180deg, #f59e0b 0%, #b45309 100%)'
-                    : 'linear-gradient(180deg, #16a34a 0%, #14532d 100%)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.65)',
+                fontSize: 11,
+                fontWeight: 800,
+                color: '#fef08a',
                 textAlign: 'center',
-                pointerEvents: 'none',
-                minWidth: 260,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              <div style={{ fontWeight: 900, fontSize: 14, color: '#fef08a', textShadow: '0 1px 2px #000' }}>
-                {eventBanner.title}
-              </div>
-              {eventBanner.subtitle && (
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginTop: 2 }}>
-                  {eventBanner.subtitle}
-                </div>
-              )}
+              {statusBanner}
             </div>
-          )}
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: bulbTick === 1 ? '#fde047' : '#ef4444',
+                boxShadow: '0 0 6px #fde047',
+                flexShrink: 0,
+              }}
+            />
+          </div>
 
-          {/* Column Range Headers */}
+          {/* Column Range Headers (1-15 | 16-30 | 31-45 | 46-60 | 61-75) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 58px)',
+              gridTemplateColumns: 'repeat(5, 1fr)',
               gap: 6,
               marginBottom: 4,
             }}
           >
-            {['1–15', '16–30', '31–45', '46–60', '61–75'].map((rng, c) => (
+            {['1–15', '16–30', '31–45', '46–60', '61–75'].map((rng, idx) => (
               <div
-                key={c}
+                key={rng}
                 style={{
+                  background: 'linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%)',
+                  border: '1.5px solid #fde047',
+                  borderRadius: 4,
                   textAlign: 'center',
                   fontSize: 10,
                   fontWeight: 900,
-                  color: '#fde047',
-                  background: 'rgba(0,0,0,0.35)',
-                  borderRadius: 4,
+                  color: '#fef08a',
                   padding: '2px 0',
-                  border: '1px solid rgba(250,204,21,0.35)',
                 }}
               >
-                {rng}
+                {['S', 'L', 'I', 'N', 'G'][idx]} • {rng}
               </div>
             ))}
           </div>
 
-          {/* 5x5 SLINGO MATRIX */}
+          {/* AUTHENTIC 5×5 EMBOSSED CREAM/IVORY SLINGO MATRIX */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 58px)',
-              gridTemplateRows: 'repeat(5, 52px)',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gridTemplateRows: 'repeat(5, 1fr)',
               gap: 6,
-              padding: 7,
-              background: '#091230',
-              border: '2px solid #ca8a04',
-              borderRadius: 8,
+              flex: 1,
+              background: '#0b132b',
+              border: '3px inset #ca8a04',
+              borderRadius: 6,
+              padding: 6,
+              minHeight: 235,
             }}
           >
-            {board.map((row, r) =>
-              row.map((num, c) => {
-                const isCovered = marked[r][c];
-                const clickable = isCellClickable(r, c);
-                const isFlashing = flashCells.has(`${r},${c}`);
-                const isVisionBest = visionCells.has(`${r},${c}`);
+            {board.map((row, rIdx) =>
+              row.map((num, cIdx) => {
+                const isCovered = marked[rIdx][cIdx];
+                const clickable = isCellClickable(rIdx, cIdx);
+                const isFlashing = flashCells.has(`${rIdx},${cIdx}`);
+                const isVisionBest = visionCells.has(`${rIdx},${cIdx}`);
 
                 return (
-                  <button
-                    key={`${r}-${c}`}
-                    type="button"
-                    onClick={() => handleCellClick(r, c)}
+                  <div
+                    key={`${rIdx}-${cIdx}`}
+                    onClick={() => handleCellClick(rIdx, cIdx)}
                     style={{
-                      width: 58,
-                      height: 52,
-                      borderRadius: 6,
-                      border: isFlashing
-                        ? '2px solid #ffffff'
-                        : clickable
-                        ? '2px solid #fde047'
-                        : isCovered
-                        ? '2px solid #b45309'
-                        : '2px solid #94a3b8',
-                      background: isFlashing
-                        ? 'linear-gradient(135deg, #fde047 0%, #f59e0b 100%)'
-                        : isCovered
-                        ? 'radial-gradient(circle at 35% 30%, #ef4444 0%, #991b1b 85%)'
+                      position: 'relative',
+                      borderRadius: 5,
+                      background: isCovered
+                        ? 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)'
                         : clickable
                         ? 'linear-gradient(180deg, #fef9c3 0%, #fde047 100%)'
-                        : 'linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%)',
-                      cursor: clickable ? 'pointer' : 'default',
+                        : 'linear-gradient(180deg, #fffdf5 0%, #efe4c8 100%)',
+                      borderTop: isCovered ? '2px solid #090d16' : '2px solid #ffffff',
+                      borderLeft: isCovered ? '2px solid #090d16' : '2px solid #ffffff',
+                      borderRight: isCovered ? '2px solid #334155' : '2px solid #a89977',
+                      borderBottom: isCovered ? '2px solid #334155' : '2px solid #a89977',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      position: 'relative',
-                      padding: 0,
-                      outline: 'none',
-                      animation: clickable ? 'slingoPulse 0.9s ease-in-out infinite' : 'none',
-                      boxShadow: isCovered
-                        ? 'inset 0 2px 4px rgba(255,255,255,0.35)'
-                        : 'inset 0 2px 0 #fff, 0 2px 4px rgba(0,0,0,0.4)',
+                      cursor: clickable ? 'pointer' : 'default',
+                      animation: clickable ? 'slingoTileGlow 0.9s infinite' : 'none',
                     }}
                   >
                     {isCovered ? (
-                      <>
-                        <span style={{ fontSize: 23, color: '#fde047', lineHeight: 1, textShadow: '0 1px 2px #000' }}>
-                          ★
-                        </span>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fecaca', marginTop: -1 }}>
-                          {num}
-                        </span>
-                      </>
+                      <SlingoStarMedallion flashing={isFlashing} />
                     ) : (
                       <>
                         <span
                           style={{
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: 900,
-                            color: clickable ? '#7c2d12' : '#0f172a',
-                            fontFamily: "'Arial Black', Tahoma, sans-serif",
-                            lineHeight: 1,
+                            color: clickable ? '#991b1b' : '#172554',
+                            fontFamily: "'Georgia', 'Times New Roman', serif",
+                            textShadow: '0 1px 0 #ffffff',
                           }}
                         >
                           {num}
                         </span>
                         {isVisionBest && (
                           <span
+                            title="Slingo Vision: Optimal Joker Placement!"
                             style={{
                               position: 'absolute',
-                              top: 1,
-                              right: 2,
-                              fontSize: 9,
+                              top: 2,
+                              right: 3,
+                              fontSize: 10,
                               background: '#7c3aed',
                               color: '#fff',
-                              borderRadius: 3,
+                              borderRadius: 4,
                               padding: '0 3px',
                               fontWeight: 900,
                             }}
-                            title="Slingo Vision: Best Strategic Square!"
                           >
-                            BEST
+                            ★BEST
                           </span>
                         )}
                       </>
                     )}
-                  </button>
+                  </div>
                 );
               })
             )}
           </div>
 
-          {/* Shot Clock / Instruction Strip */}
-          <div style={{ width: 318, marginTop: 5, marginBottom: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 800, marginBottom: 2 }}>
-              <span style={{ color: '#fde047' }}>
-                {phase === 'marking'
-                  ? hasSuperJokerActive
-                    ? '🌟 SUPER JOKER! Click ANY square on the board!'
-                    : '👆 Click highlighted matching/wild squares above!'
-                  : phase === 'spinning'
-                  ? '🎰 Spinning reels...'
-                  : phase === 'gameover'
-                  ? '🏁 Game Complete! Click PLAY AGAIN to start a new card!'
-                  : spin === 0
-                  ? '👇 Click TAKE SPIN to begin Game!'
-                  : nextSpinCost > 0
-                  ? `⚠️ Spin ${nextSpinNum} costs ${nextSpinCost.toLocaleString()} pts`
-                  : `👇 Ready for Spin ${nextSpinNum} of ${maxSpins}`}
-              </span>
-              {timedMode && phase === 'marking' && (
-                <span style={{ color: shotClock < 30 ? '#f87171' : '#86efac' }}>
-                  ⏱ {Math.ceil(shotClock / 10)}s
-                </span>
-              )}
-            </div>
-            {timedMode && (
-              <div
-                style={{
-                  height: 6,
-                  background: '#091230',
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  border: '1px solid #334155',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${phase === 'marking' ? shotClock : 100}%`,
-                    height: '100%',
-                    background:
-                      shotClock > 50 ? '#22c55e' : shotClock > 25 ? '#eab308' : '#ef4444',
-                    transition: 'width 0.14s linear',
-                  }}
-                />
-              </div>
-            )}
-          </div>
+          {/* Brushed Gold Axle Divider Between Card & 5 Slot Reels */}
+          <div
+            style={{
+              height: 8,
+              margin: '7px 0 6px 0',
+              borderRadius: 4,
+              background: 'linear-gradient(180deg, #fef08a 0%, #ca8a04 55%, #713f12 100%)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+            }}
+          />
 
-          {/* 5 SLOT REELS */}
+          {/* 5 CURVED 3D CYLINDRICAL SLOT MACHINE REEL DRUMS */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 58px)',
+              gridTemplateColumns: 'repeat(5, 1fr)',
               gap: 6,
-              padding: '6px 8px',
-              background: 'linear-gradient(180deg, #78350f 0%, #451a03 100%)',
-              border: '2px solid #facc15',
-              borderRadius: 8,
-              boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+              height: 68,
             }}
           >
-            {reels.map((rl, c) => {
-              const isColSpinning = spinningCols[c];
-              const needsAction = phase === 'marking' && !rl.used;
+            {reels.map((rl, cIdx) => {
+              const isSpinning = spinningCols[cIdx];
+              const actionable =
+                phase === 'marking' &&
+                !rl.used &&
+                (rl.type === 'JOKER' || rl.type === 'SUPER_JOKER' || rl.type === 'NUMBER');
+
               return (
                 <div
-                  key={c}
+                  key={cIdx}
                   style={{
-                    width: 58,
-                    height: 54,
-                    borderRadius: 5,
-                    background: needsAction
-                      ? 'linear-gradient(180deg, #fef08a 0%, #ffffff 50%, #fef08a 100%)'
-                      : 'linear-gradient(180deg, #cbd5e1 0%, #ffffff 48%, #cbd5e1 100%)',
-                    border: needsAction ? '2px solid #16a34a' : '2px solid #475569',
+                    position: 'relative',
+                    borderRadius: 6,
+                    overflow: 'hidden',
+                    border: actionable ? '2.5px solid #facc15' : '2px solid #78350f',
+                    /* 3D Cylindrical Drum Barrel Shading! */
+                    background:
+                      'linear-gradient(180deg, #b8b09c 0%, #fffdf7 22%, #ffffff 50%, #f3ebd6 78%, #9c927a 100%)',
+                    boxShadow: actionable
+                      ? '0 0 12px #fde047, inset 0 6px 8px rgba(0,0,0,0.28), inset 0 -6px 8px rgba(0,0,0,0.28)'
+                      : 'inset 0 7px 9px rgba(0,0,0,0.35), inset 0 -7px 9px rgba(0,0,0,0.35)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    overflow: 'hidden',
-                    boxShadow: 'inset 0 3px 6px rgba(0,0,0,0.35)',
                   }}
                 >
-                  {isColSpinning ? (
+                  {isSpinning ? (
                     <div
                       style={{
-                        animation: 'slingoSpinBlur 0.16s linear infinite',
+                        fontSize: 24,
                         fontWeight: 900,
-                        fontSize: 20,
-                        color: '#64748b',
+                        color: '#475569',
+                        filter: 'blur(1px)',
+                        fontFamily: 'Georgia, serif',
                       }}
                     >
-                      {c * 15 + ((spin * 7 + c * 3) % 15) + 1}
+                      {rollingNumbers[cIdx]}
                     </div>
                   ) : (
-                    <SlingoSymbolGraphic type={rl.type} number={rl.number} size={44} />
+                    <div style={{ opacity: rl.used && rl.type === 'NUMBER' && spin > 0 ? 0.55 : 1 }}>
+                      <SlingoReelSymbolSVG type={rl.type} number={rl.number} size={48} />
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
 
-          {/* Bottom Action Bar: TAKE SPIN / Paid Spin Risk Decision / New Game */}
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-            {phase === 'paid_spin_prompt' ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  background: 'rgba(127, 29, 29, 0.92)',
-                  border: '2px solid #fde047',
-                  borderRadius: 8,
-                  padding: '5px 10px',
-                }}
-              >
-                <span style={{ fontWeight: 800, color: '#fef08a', fontSize: 11 }}>
-                  Spin {nextSpinNum} costs {(PAID_SPIN_COSTS[nextSpinNum] || 2000).toLocaleString()} pts!
-                </span>
-                <button
-                  type="button"
-                  onClick={() => executeSpin(true)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: 5,
-                    border: '1px solid #fff',
-                    background: 'linear-gradient(180deg, #22c55e 0%, #15803d 100%)',
-                    color: '#fff',
-                    fontWeight: 900,
-                    fontSize: 11,
-                    cursor: 'pointer',
-                  }}
-                >
-                  🎰 Pay & Take Spin {nextSpinNum}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => finalizeGame(score, completedLines.length, false)}
-                  style={{
-                    padding: '5px 10px',
-                    borderRadius: 5,
-                    border: '1px solid #fca5a5',
-                    background: '#991b1b',
-                    color: '#fff',
-                    fontWeight: 800,
-                    fontSize: 11,
-                    cursor: 'pointer',
-                  }}
-                >
-                  💰 Keep {score.toLocaleString()} & End
-                </button>
-              </div>
-            ) : phase === 'gameover' ? (
-              <button
-                type="button"
-                onClick={() => startNewGame()}
-                style={{
-                  padding: '8px 28px',
-                  borderRadius: 20,
-                  border: '2px solid #fef08a',
-                  background: 'linear-gradient(180deg, #22c55e 0%, #15803d 100%)',
-                  color: '#fff',
-                  fontWeight: 900,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  animation: 'slingoBtnGlow 1.3s infinite',
-                }}
-              >
-                ★ PLAY NEW SLINGO CARD ★
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={phase !== 'ready_to_spin'}
-                  onClick={() => executeSpin(false)}
-                  style={{
-                    padding: '7px 30px',
-                    borderRadius: 22,
-                    border: '2px solid #fef08a',
-                    background:
-                      phase === 'ready_to_spin'
-                        ? 'linear-gradient(180deg, #facc15 0%, #eab308 48%, #ca8a04 100%)'
-                        : '#475569',
-                    color: phase === 'ready_to_spin' ? '#451a03' : '#94a3b8',
-                    fontWeight: 900,
-                    fontSize: 14,
-                    letterSpacing: 0.5,
-                    cursor: phase === 'ready_to_spin' ? 'pointer' : 'not-allowed',
-                    animation: phase === 'ready_to_spin' ? 'slingoBtnGlow 1.3s infinite' : 'none',
-                  }}
-                >
-                  {spin === 0 ? '🎰 TAKE FIRST SPIN!' : `🎰 TAKE SPIN ${nextSpinNum}`}
-                </button>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 10, color: '#cbd5e1' }}>
-                  <input
-                    type="checkbox"
-                    checked={autoDaubNumbers}
-                    onChange={(e) => setAutoDaubNumbers(e.target.checked)}
-                  />
-                  Auto-Match Numbers
-                </label>
-              </>
-            )}
-          </div>
+          {/* Animated Pop-Out Devil & Cherub Stage Overlay */}
+          <DevilAndCherubCutscene
+            mode={cutscene?.mode ?? null}
+            subtitle={cutscene?.subtitle ?? ''}
+            onDismiss={() => setCutscene(null)}
+          />
         </div>
 
-        {/* Right Optional Classic AOL Slingo Game Room Chat & Quick Legend */}
+        {/* OPTIONAL RIGHT PANE: AOL Game Parlor Chat Room */}
         {showLounge && (
           <div
             style={{
-              width: 195,
+              width: 205,
               flexShrink: 0,
-              background: 'linear-gradient(180deg, #162456 0%, #0c1638 100%)',
-              border: '2px solid #60a5fa',
+              background: '#ece9d8',
+              color: '#000',
+              border: '2px solid #eab308',
               borderRadius: 8,
-              padding: 8,
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 6,
+              overflow: 'hidden',
             }}
           >
-            {/* Quick Symbol Pay Legend */}
-            <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 5, padding: 6, fontSize: 10, lineHeight: 1.45 }}>
-              <div style={{ fontWeight: 900, color: '#fde047', marginBottom: 2 }}>SYMBOL GUIDE</div>
-              <div>🔢 <b>Number:</b> +{(200 * mult).toLocaleString()} pts</div>
-              <div>🃏 <b>Joker:</b> Column Wild</div>
-              <div>🌟 <b>Super Joker:</b> Any Square</div>
-              <div>🪙 <b>Gold Coin:</b> +{(1000 * mult).toLocaleString()} pts</div>
-              <div>🔄 <b>Free Spin:</b> Free Turn</div>
-              <div>😈 <b>Devil:</b> ½ Score!</div>
-              <div>👼 <b>Cherub:</b> Saves Score!</div>
+            <div
+              style={{
+                background: 'linear-gradient(90deg, #1d4ed8 0%, #1e3a8a 100%)',
+                color: '#fff',
+                padding: '5px 8px',
+                fontWeight: 700,
+                fontSize: 11,
+              }}
+            >
+              💬 AOL Slingo Lounge (28)
             </div>
-
-            {/* Classic AOL Keyword: SLINGO Lounge Chat */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <div style={{ fontWeight: 800, color: '#93c5fd', fontSize: 10, marginBottom: 3 }}>
-                💬 AOL Slingo Lounge (Keyword: SLINGO)
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  background: '#ffffff',
-                  color: '#0f172a',
-                  borderRadius: 4,
-                  padding: 6,
-                  overflowY: 'auto',
-                  fontSize: 10,
-                  lineHeight: 1.38,
-                }}
-              >
-                {loungeMsgs.map((m, idx) => (
-                  <div key={idx} style={{ marginBottom: 4 }}>
-                    <b style={{ color: m.user === 'Administrator' ? '#1d4ed8' : '#b91c1c' }}>{m.user}:</b>{' '}
-                    <span>{m.text}</span>
-                  </div>
-                ))}
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!chatInput.trim()) return;
-                  const txt = chatInput.trim();
-                  setChatInput('');
-                  setLoungeMsgs((prev) => [...prev.slice(-14), { user: 'Administrator', text: txt }]);
-                  window.setTimeout(() => {
-                    const replies = [
-                      'nice spin!! keep those jokers coming!',
-                      'watch spin 17-20 costs unless you got free spins!',
-                      'nothing beats clearing a full card on AOL Slingo!',
-                      'may the Cherub protect your score!! 👼',
-                    ];
-                    setLoungeMsgs((prev) => [
-                      ...prev.slice(-14),
-                      {
-                        user: 'SlingoQueen04',
-                        text: replies[Math.floor(Math.random() * replies.length)],
-                      },
-                    ]);
-                  }, 900);
-                }}
-                style={{ display: 'flex', gap: 4, marginTop: 4 }}
-              >
-                <input
-                  className="xp-input"
-                  style={{ flex: 1, height: 21, fontSize: 10, color: '#000' }}
-                  placeholder="Chat in Slingo room..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                />
-                <button type="submit" className="xp-btn" style={{ padding: '1px 7px', minHeight: 21, fontSize: 10 }}>
-                  Send
-                </button>
-              </form>
+            <div style={{ flex: 1, padding: 6, overflowY: 'auto', background: '#fff', fontSize: 11 }}>
+              {loungeMsgs.map((m, i) => (
+                <div key={i} style={{ marginBottom: 5, lineHeight: 1.3 }}>
+                  <b style={{ color: m.user === 'Administrator' ? '#dc2626' : '#1d4ed8' }}>{m.user}:</b>{' '}
+                  {m.text}
+                </div>
+              ))}
             </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!chatInput.trim()) return;
+                setLoungeMsgs((prev) => [...prev.slice(-15), { user: 'Administrator', text: chatInput.trim() }]);
+                setChatInput('');
+              }}
+              style={{ display: 'flex', gap: 4, padding: 5, borderTop: '1px solid #cbd5e1' }}
+            >
+              <input
+                className="xp-input"
+                style={{ flex: 1, fontSize: 11 }}
+                placeholder="Say hi..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+              />
+              <button type="submit" className="xp-btn">
+                Send
+              </button>
+            </form>
           </div>
         )}
       </div>
 
-      {/* High Scores Hall of Fame Modal */}
+      {/* HIGH SCORES MODAL */}
       {showHighScores && (
         <div
           onClick={() => setShowHighScores(false)}
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(0,0,0,0.68)',
+            background: 'rgba(0,0,0,0.6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 60,
+            zIndex: 90,
           }}
         >
           <div
+            className="xp-window"
+            style={{ width: 390, color: '#000', position: 'relative' }}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 390,
-              background: '#ece9d8',
-              color: '#000',
-              border: '2px solid #0054e3',
-              borderRadius: 6,
-              padding: 14,
-              boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
-            }}
           >
-            <div style={{ fontWeight: 900, fontSize: 14, color: '#00309c', marginBottom: 8 }}>
-              🏆 Slingo Hall of Fame (Persistent OS Storage)
+            <div className="xp-titlebar" style={{ height: 24 }}>
+              <span className="xp-titlebar-text">🏆 Slingo Hall of Fame</span>
             </div>
-            <div style={{ background: '#fff', border: '1px solid #7f9db9', padding: 8, maxHeight: 240, overflowY: 'auto' }}>
-              {highScores.map((hs, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '24px 1fr 74px 68px',
-                    padding: '4px 4px',
-                    borderBottom: '1px solid #f1f5f9',
-                    fontWeight: idx === 0 ? 700 : 400,
-                  }}
-                >
-                  <span>#{idx + 1}</span>
-                  <span>
-                    {hs.name} {hs.fullCard ? '★' : ''}
-                  </span>
-                  <span style={{ color: '#64748b', fontSize: 10 }}>{hs.slingos} Slingos</span>
-                  <span style={{ textAlign: 'right', fontWeight: 700, color: '#15803d' }}>
-                    {hs.score.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-              <button className="xp-btn xp-btn-primary" onClick={() => setShowHighScores(false)}>
-                Close
-              </button>
+            <div style={{ padding: 12, background: '#ece9d8', fontSize: 11 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', marginBottom: 10 }}>
+                <thead>
+                  <tr style={{ background: '#dbeafe', textAlign: 'left' }}>
+                    <th style={{ padding: 5 }}>#</th>
+                    <th style={{ padding: 5 }}>Screen Name</th>
+                    <th style={{ padding: 5 }}>Mode</th>
+                    <th style={{ padding: 5, textAlign: 'right' }}>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {highScores.map((hs, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: 5, fontWeight: 700 }}>{i + 1}</td>
+                      <td style={{ padding: 5 }}>
+                        {hs.name} {hs.fullCard && '👑'}
+                      </td>
+                      <td style={{ padding: 5 }}>{hs.mode}</td>
+                      <td style={{ padding: 5, textAlign: 'right', fontWeight: 700 }}>
+                        {hs.score.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="xp-btn xp-btn-primary" onClick={() => setShowHighScores(false)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Rules & Official AOL Slingo Paytable Modal */}
+      {/* CAREER TROPHIES & STATS MODAL */}
+      {showTrophiesModal && (
+        <div
+          onClick={() => setShowTrophiesModal(false)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 90,
+          }}
+        >
+          <div
+            className="xp-window"
+            style={{ width: 420, color: '#000', position: 'relative' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="xp-titlebar" style={{ height: 24 }}>
+              <span className="xp-titlebar-text">🎖️ Slingo Career Stats & Trophies</span>
+            </div>
+            <div style={{ padding: 12, background: '#ece9d8', fontSize: 11 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 6,
+                  marginBottom: 10,
+                  textAlign: 'center',
+                }}
+              >
+                <div className="xp-bevel-sunken" style={{ background: '#fff', padding: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{careerStats.gamesPlayed}</div>
+                  <div>Games</div>
+                </div>
+                <div className="xp-bevel-sunken" style={{ background: '#fff', padding: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{careerStats.totalSlingos}</div>
+                  <div>Slingos</div>
+                </div>
+                <div className="xp-bevel-sunken" style={{ background: '#fff', padding: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{careerStats.devilsMet}</div>
+                  <div>Devils Met</div>
+                </div>
+                <div className="xp-bevel-sunken" style={{ background: '#fff', padding: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{careerStats.cherubRescues}</div>
+                  <div>Cherub Saves</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+                {BADGE_DEFINITIONS.map((b) => {
+                  const unlocked = careerStats.unlockedBadges.includes(b.id);
+                  return (
+                    <div
+                      key={b.id}
+                      style={{
+                        background: unlocked ? '#fef9c3' : '#f1f5f9',
+                        border: unlocked ? '1px solid #ca8a04' : '1px solid #cbd5e1',
+                        borderRadius: 4,
+                        padding: 6,
+                        opacity: unlocked ? 1 : 0.6,
+                      }}
+                    >
+                      <div style={{ fontWeight: 700 }}>
+                        {b.icon} {b.title} {unlocked ? '✓' : '🔒'}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#475569' }}>{b.desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="xp-btn xp-btn-primary" onClick={() => setShowTrophiesModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAYTABLE & SOUNDBOARD RULES MODAL */}
       {showRulesModal && (
         <div
           onClick={() => setShowRulesModal(false)}
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(0,0,0,0.68)',
+            background: 'rgba(0,0,0,0.6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 60,
+            zIndex: 90,
           }}
         >
           <div
+            className="xp-window"
+            style={{ width: 430, color: '#000', position: 'relative' }}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 440,
-              maxHeight: '88%',
-              overflowY: 'auto',
-              background: '#ece9d8',
-              color: '#000',
-              border: '2px solid #0054e3',
-              borderRadius: 6,
-              padding: 14,
-              boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
-              lineHeight: 1.45,
-            }}
           >
-            <div style={{ fontWeight: 900, fontSize: 14, color: '#00309c', marginBottom: 6 }}>
-              🎰 Official Classic Slingo Rules & Paytable
+            <div className="xp-titlebar" style={{ height: 24 }}>
+              <span className="xp-titlebar-text">Classic AOL Slingo — Official Paytable & Sounds</span>
             </div>
-            <ul style={{ paddingLeft: 18, margin: '6px 0' }}>
-              <li>
-                <b>20 Spins per Game:</b> Spins 1–16 are free. Final Spins cost points unless you have a{' '}
-                <b>Free Spin</b> token (Spin 17: 500 • Spin 18: 1,000 • Spin 19: 1,500 • Spin 20: 2,000).
-              </li>
-              <li>
-                <b>Numbers & Wilds:</b> Match numbers in their column (+200 pts). <b>Jokers</b> cover ANY number in
-                their column. <b>Super Jokers</b> cover ANY number on the entire 5×5 card!
-              </li>
-              <li>
-                <b>Multi-Joker Spin Bonus:</b> 3 Jokers = +1,000 • 4 Jokers = +2,500 • 5 Jokers = +5,000!
-              </li>
-              <li>
-                <b>Slingos (5-in-a-Row):</b> Horizontal, vertical, or diagonal = <b>+1,000 pts</b> each (12 possible).
-              </li>
-              <li>
-                <b>Devil & Cherub:</b> The Devil cuts your score in half — unless the <b>Cherub</b> shoots him with an
-                arrow!
-              </li>
-              <li>
-                <b>Full Card Bonus:</b> Spin 5 = <b>15,000 pts</b> down to Spin 20 = <b>6,500 pts</b>!
-              </li>
-            </ul>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-              <button className="xp-btn xp-btn-primary" onClick={() => setShowRulesModal(false)}>
-                Got It!
-              </button>
+            <div style={{ padding: 12, background: '#ece9d8', fontSize: 11, lineHeight: 1.45 }}>
+              <ul style={{ margin: '0 0 10px 0', paddingLeft: 18 }}>
+                <li>
+                  <b>Number Match / Joker Placement:</b> +200 pts
+                </li>
+                <li>
+                  <b>Gold Coin:</b> +1,000 pts • <b>3 / 4 / 5 Jokers on 1 Spin:</b> +1,000 / +2,500 / +5,000 pts
+                </li>
+                <li>
+                  <b>Each 5-in-a-Row SLINGO (12 lines):</b> +1,000 pts
+                </li>
+                <li>
+                  <b>Full Card Blackout Bonus:</b> 15,000 pts (Spin 5) scaling down to 6,500 pts (Spin 20)
+                </li>
+                <li>
+                  <b>😈 The Slingo Devil:</b> Laughs and cuts your score in HALF — unless rescued by the{' '}
+                  <b>👼 Winged Cherub (+500 pts)</b> or Deluxe Shield!
+                </li>
+                <li>
+                  <b>Spins 17–20:</b> Cost 500 / 1,000 / 1,500 / 2,000 pts unless covered by a Free Spin token.
+                </li>
+              </ul>
+
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                <button className="xp-btn" onClick={() => slingoAudio.devilLaugh(Math.max(0.6, effVol))}>
+                  🔊 Devil Laugh
+                </button>
+                <button className="xp-btn" onClick={() => slingoAudio.cherubSave(Math.max(0.6, effVol))}>
+                  🔊 Cherub Rescue
+                </button>
+                <button className="xp-btn" onClick={() => slingoAudio.slingoFanfare(Math.max(0.6, effVol))}>
+                  🔊 Slingo Fanfare
+                </button>
+                <button className="xp-btn" onClick={() => slingoAudio.coin(Math.max(0.6, effVol))}>
+                  🔊 Gold Coin
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="xp-btn xp-btn-primary" onClick={() => setShowRulesModal(false)}>
+                  Got It!
+                </button>
+              </div>
             </div>
           </div>
         </div>

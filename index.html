@@ -8,8 +8,15 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>Microsoft Windows XP Professional</title>
-    <link rel="icon" type="image/png" href="/icons/windows.png" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="TrillXP — Go back to experience the early-2000s PC & Internet era, or educate someone who missed 56K Dial-Up, AOL 9.8, Classic Slingo, Zero-Lag Solitaire, PowerShell 1.0 & Windows XP. Includes official signed Android TrillXP.apk!"
+    />
+    <title>TrillXP — Windows XP Time Machine &amp; 2000s PC Museum</title>
+    <link rel="icon" type="image/svg+xml" href="/icons/trillxp.svg" />
+    <link rel="alternate icon" type="image/png" href="/icons/windows.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <style>
       html,
       body,
@@ -37,5 +44,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

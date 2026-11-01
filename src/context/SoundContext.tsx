@@ -25,7 +25,16 @@ export type SoundEffect =
   | 'aimReceive'
   | 'aimRing'
   | 'aimDoorOpen'
-  | 'aimDoorSlam';
+  | 'aimDoorSlam'
+  | 'cardFlip'
+  | 'cardPlace'
+  | 'devilLaugh'
+  | 'devilLaughAlt'
+  | 'cherubHarp'
+  | 'slingoWin'
+  | 'slingoCoin'
+  | 'slingoJoker'
+  | 'slingoReelStop';
 
 const SOUND_URLS: Partial<Record<SoundEffect, string>> = {
   startup: '/sounds/startup.wav',
@@ -51,6 +60,15 @@ const SOUND_URLS: Partial<Record<SoundEffect, string>> = {
   aimSend: '/sounds/aim-send.wav',
   aimReceive: '/sounds/aim-receive.wav',
   aimRing: '/sounds/aim-ring.wav',
+  cardFlip: '/sounds/card-flip.wav',
+  cardPlace: '/sounds/card-place.wav',
+  devilLaugh: '/sounds/slingo/devil-laugh-1.wav',
+  devilLaughAlt: '/sounds/slingo/devil-laugh-2.wav',
+  cherubHarp: '/sounds/slingo/cherub-harp.wav',
+  slingoWin: '/sounds/slingo/slingo-win.wav',
+  slingoCoin: '/sounds/slingo/coin-collect.wav',
+  slingoJoker: '/sounds/slingo/joker-chime.wav',
+  slingoReelStop: '/sounds/slingo/reel-stop.wav',
 };
 
 const DTMF_FREQS: Record<string, [number, number]> = {
