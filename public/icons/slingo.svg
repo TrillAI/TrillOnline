@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <radialGradient id="slBg" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="45%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </radialGradient>
+    <linearGradient id="slRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="42" height="42" rx="9" fill="#1e3a8a" stroke="url(#slRim)" stroke-width="3"/>
+  <circle cx="24" cy="21" r="13" fill="url(#slBg)" stroke="#fff" stroke-width="1.5"/>
+  <polygon points="24,10 27.2,17.2 35,18 29,23.2 30.8,31 24,26.8 17.2,31 19,23.2 13,18 20.8,17.2" fill="#fffbeb" stroke="#7c2d12" stroke-width="1"/>
+  <rect x="6" y="34" width="36" height="9" rx="3" fill="#dc2626" stroke="#fde047" stroke-width="1.2"/>
+  <text x="24" y="40.8" text-anchor="middle" font-family="Arial Black, Tahoma, sans-serif" font-size="7.3" font-weight="900" fill="#fef08a">SLINGO</text>
+</svg>
