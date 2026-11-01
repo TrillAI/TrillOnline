@@ -1,11 +1,13 @@
 {
-  "name": "trillonline-winxp-os",
+  "name": "trillxp",
   "private": true,
   "version": "1.0.0",
+  "description": "TrillXP — Interactive Windows XP SP3 Web OS & 2000s PC Time Capsule Museum with Signed Android APK",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc -b && vite build",
+    "build:apk": "python3 scripts/build_trillxp_apk.py",
     "preview": "node server.mjs",
     "start": "node server.mjs"
   },

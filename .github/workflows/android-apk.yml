@@ -1,0 +1,35 @@
+name: Build & Verify TrillXP Android APK
+
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout TrillXP
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build Signed TrillXP.apk (V1 JAR + APK Signature Scheme v2)
+        run: python3 scripts/build_trillxp_apk.py
+
+      - name: Verify Binary AndroidManifest.xml & APK Signature Scheme v2
+        run: |
+          pip install pyaxmlparser apksigtool
+          python3 -c "from pyaxmlparser import APK; a = APK('public/downloads/TrillXP.apk'); assert a.package == 'ai.trill.trillxp' and a.is_valid_APK(), 'Invalid APK'"
+          python3 -m apksigtool verify public/downloads/TrillXP.apk
+
+      - name: Upload TrillXP.apk Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrillXP-Android-APK
+          path: public/downloads/TrillXP.apk

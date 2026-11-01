@@ -44,40 +44,47 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                 <span className="xp-sm-sub">AOL 9.8 Mailbox UI</span>
               </div>
             </div>
-            <div className="xp-sm-item" onClick={() => launch('arena-ai')}>
-              <img src="/icons/arena-ai.svg" alt="" style={{ width: 28, height: 28 }} />
+            <div className="xp-sm-item" onClick={() => launch('trillxp-museum')}>
+              <img src="/icons/trillxp.svg" alt="" style={{ width: 28, height: 28 }} />
               <div>
-                <div style={{ fontWeight: 700 }}>Arena AI Agent</div>
-                <span className="xp-sm-sub">Tasks, Images & Video</span>
+                <div style={{ fontWeight: 700 }}>TrillXP Museum</div>
+                <span className="xp-sm-sub">2000s Time Capsule &amp; Guide</span>
+              </div>
+            </div>
+            <div className="xp-sm-item" onClick={() => launch('apk-installer')}>
+              <img src="/icons/android-apk.svg" alt="" style={{ width: 28, height: 28 }} />
+              <div>
+                <div style={{ fontWeight: 700 }}>Get TrillXP.apk</div>
+                <span className="xp-sm-sub">Official Android APK</span>
               </div>
             </div>
 
             <div className="xp-sm-sep" />
 
             {/* Frequently Used Programs */}
+            <div className="xp-sm-item" onClick={() => launch('arena-ai')}>
+              <img src="/icons/arena-ai.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span style={{ fontWeight: 700 }}>Arena AI Agent</span>
+            </div>
             <div className="xp-sm-item" onClick={() => launch('slingo')}>
               <img src="/icons/slingo.svg" alt="" style={{ width: 24, height: 24 }} />
               <span style={{ fontWeight: 700 }}>Slingo Deluxe</span>
+            </div>
+            <div className="xp-sm-item" onClick={() => launch('powershell')}>
+              <img src="/icons/powershell.svg" alt="" style={{ width: 24, height: 24 }} />
+              <span>Windows PowerShell 1.0</span>
+            </div>
+            <div className="xp-sm-item" onClick={() => launch('solitaire')}>
+              <img src="/icons/solitaire.png" alt="" style={{ width: 24, height: 24 }} />
+              <span>Solitaire &amp; Spider</span>
             </div>
             <div className="xp-sm-item" onClick={() => launch('aol-dialer')}>
               <img src="/icons/luna32/net_modem.png" alt="" style={{ width: 24, height: 24 }} />
               <span>America Online 9.0</span>
             </div>
-            <div className="xp-sm-item" onClick={() => launch('wmplayer')}>
-              <img src="/icons/846(32x32).png" alt="" style={{ width: 24, height: 24 }} />
-              <span>Windows Media Player</span>
-            </div>
-            <div className="xp-sm-item" onClick={() => launch('aim')}>
-              <img src="/icons/msn.png" alt="" style={{ width: 24, height: 24 }} />
-              <span>AIM Instant Messenger</span>
-            </div>
             <div className="xp-sm-item" onClick={() => launch('software-center')}>
               <img src="/icons/luna32/file_generic_installer.png" alt="" style={{ width: 24, height: 24 }} />
               <span>Install Software (.EXE)</span>
-            </div>
-            <div className="xp-sm-item" onClick={() => launch('windows-update')}>
-              <img src="/icons/luna32/secure_warn.png" alt="" style={{ width: 24, height: 24 }} />
-              <span>Windows Update</span>
             </div>
           </div>
 
@@ -128,13 +135,21 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                   zIndex: 10020,
                 }}
               >
+                <div className="xp-sm-item" onClick={() => launch('trillxp-museum')}>
+                  <img src="/icons/trillxp.svg" alt="" style={{ width: 16, height: 16 }} />
+                  <span style={{ fontWeight: 700 }}>TrillXP 2000s Museum</span>
+                </div>
+                <div className="xp-sm-item" onClick={() => launch('apk-installer')}>
+                  <img src="/icons/android-apk.svg" alt="" style={{ width: 16, height: 16 }} />
+                  <span style={{ fontWeight: 700 }}>Get TrillXP.apk (Android)</span>
+                </div>
                 <div className="xp-sm-item" onClick={() => launch('windows-update')}>
                   <img src="/icons/luna16/secure_warn.png" alt="" style={{ width: 16, height: 16 }} />
-                  <span style={{ fontWeight: 700 }}>Windows Update</span>
+                  <span>Windows Update</span>
                 </div>
                 <div className="xp-sm-item" onClick={() => launch('software-center')}>
                   <img src="/icons/227(16x16).png" alt="" style={{ width: 16, height: 16 }} />
-                  <span>Set Program Access & Install</span>
+                  <span>Set Program Access &amp; Install</span>
                 </div>
                 <div className="xp-sm-item" onClick={() => launch('arena-ai')}>
                   <img src="/icons/arena-ai.svg" alt="" style={{ width: 16, height: 16 }} />
@@ -150,7 +165,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <img src="/icons/358(16x16).png" alt="" style={{ width: 16, height: 16 }} />
-                    Accessories
+                    Accessories &amp; Shells
                   </span>
                   <span>▶</span>
 
@@ -160,7 +175,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                         position: 'absolute',
                         left: '100%',
                         bottom: -18,
-                        width: 196,
+                        width: 214,
                         background: '#fff',
                         border: '1px solid #4880d8',
                         borderLeft: '4px solid #4880d8',
@@ -169,13 +184,17 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                         color: '#000',
                       }}
                     >
-                      <div className="xp-sm-item" onClick={() => launch('calculator')}>
-                        <img src="/icons/74(16x16).png" alt="" style={{ width: 16, height: 16 }} />
-                        <span>Calculator</span>
+                      <div className="xp-sm-item" onClick={() => launch('powershell')} style={{ background: '#eff6ff' }}>
+                        <img src="/icons/powershell.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>Windows PowerShell 1.0</span>
                       </div>
                       <div className="xp-sm-item" onClick={() => launch('cmd')}>
                         <img src="/icons/56(16x16).png" alt="" style={{ width: 16, height: 16 }} />
-                        <span>Command Prompt</span>
+                        <span>Command Prompt (cmd.exe)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('wordpad')}>
+                        <img src="/icons/327(16x16).png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>WordPad</span>
                       </div>
                       <div className="xp-sm-item" onClick={() => launch('notepad')}>
                         <img src="/icons/327(16x16).png" alt="" style={{ width: 16, height: 16 }} />
@@ -184,6 +203,18 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                       <div className="xp-sm-item" onClick={() => launch('paint')}>
                         <img src="/icons/680(16x16).png" alt="" style={{ width: 16, height: 16 }} />
                         <span>Paint</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('calculator')}>
+                        <img src="/icons/74(16x16).png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Calculator</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('regedit')}>
+                        <img src="/icons/luna16/monitor.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Registry Editor (regedit)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('winver')}>
+                        <img src="/icons/windows.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>About TrillXP (winver)</span>
                       </div>
                       <div className="xp-sm-item" onClick={() => launch('explorer', { folderId: 'root' })}>
                         <img src="/icons/156(16x16).png" alt="" style={{ width: 16, height: 16 }} />
@@ -197,7 +228,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                   )}
                 </div>
 
-                {/* Games Folder (Slingo Deluxe + ALL 6 ORIGINAL XP GAMES!) */}
+                {/* Games Folder (Slingo Deluxe + ALL 12 CLASSIC PC GAMES!) */}
                 <div
                   className="xp-sm-item"
                   onMouseEnter={() => setActiveSubmenu('games')}
@@ -205,7 +236,7 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <img src="/icons/358(16x16).png" alt="" style={{ width: 16, height: 16 }} />
-                    <b>Games</b>
+                    <b>Games (12 Classic Titles)</b>
                   </span>
                   <span>▶</span>
 
@@ -214,8 +245,8 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                       style={{
                         position: 'absolute',
                         left: '100%',
-                        bottom: -24,
-                        width: 222,
+                        bottom: -36,
+                        width: 234,
                         background: '#fff',
                         border: '1px solid #4880d8',
                         borderLeft: '4px solid #4880d8',
@@ -228,29 +259,50 @@ export const StartMenu: React.FC<StartMenuProps> = ({ onClose, onShowModal }) =>
                         <img src="/icons/slingo.svg" alt="" style={{ width: 16, height: 16 }} />
                         <span style={{ fontWeight: 700 }}>Slingo Deluxe (AOL)</span>
                       </div>
-                      <div className="xp-sm-item" onClick={() => launch('pinball')}>
-                        <img src="/icons/pinball.png" alt="" style={{ width: 16, height: 16 }} />
-                        <span>3D Pinball - Space Cadet</span>
+                      <div className="xp-sm-item" onClick={() => launch('solitaire')}>
+                        <img src="/icons/solitaire.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>Solitaire (Drag + Tap)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('spider')}>
+                        <img src="/icons/spider.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span style={{ fontWeight: 700 }}>Spider Solitaire</span>
                       </div>
                       <div className="xp-sm-item" onClick={() => launch('freecell')}>
                         <img src="/icons/freecell.png" alt="" style={{ width: 16, height: 16 }} />
                         <span>FreeCell</span>
                       </div>
-                      <div className="xp-sm-item" onClick={() => launch('hearts')}>
-                        <img src="/icons/heart.png" alt="" style={{ width: 16, height: 16 }} />
-                        <span>Hearts</span>
+                      <div className="xp-sm-item" onClick={() => launch('pinball')}>
+                        <img src="/icons/pinball.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>3D Pinball - Space Cadet</span>
                       </div>
                       <div className="xp-sm-item" onClick={() => launch('minesweeper')}>
                         <img src="/icons/minesweeper/mine-icon.png" alt="" style={{ width: 16, height: 16 }} />
                         <span>Minesweeper</span>
                       </div>
-                      <div className="xp-sm-item" onClick={() => launch('solitaire')}>
-                        <img src="/icons/solitaire.png" alt="" style={{ width: 16, height: 16 }} />
-                        <span>Solitaire</span>
+                      <div className="xp-sm-item" onClick={() => launch('hearts')}>
+                        <img src="/icons/heart.png" alt="" style={{ width: 16, height: 16 }} />
+                        <span>The Microsoft Hearts Network</span>
                       </div>
-                      <div className="xp-sm-item" onClick={() => launch('spider')}>
-                        <img src="/icons/spider.png" alt="" style={{ width: 16, height: 16 }} />
-                        <span>Spider Solitaire</span>
+                      <div className="xp-sm-sep" />
+                      <div className="xp-sm-item" onClick={() => launch('skifree')}>
+                        <img src="/icons/skifree.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>SkiFree (1991 Yeti Edition)</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('jezzball')}>
+                        <img src="/icons/jezzball.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>JezzBall XP</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('mahjong')}>
+                        <img src="/icons/mahjong.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Mahjong Titans</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('checkers')}>
+                        <img src="/icons/checkers.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Internet Checkers</span>
+                      </div>
+                      <div className="xp-sm-item" onClick={() => launch('tetris')}>
+                        <img src="/icons/tetris.svg" alt="" style={{ width: 16, height: 16 }} />
+                        <span>Tetris XP</span>
                       </div>
                     </div>
                   )}

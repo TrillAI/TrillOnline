@@ -80,7 +80,7 @@ export const BootSequence: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ color: '#fff', fontWeight: 700 }}>
-              Award Modular BIOS v6.00PG, An Energy Star Ally
+              Award Modular BIOS v6.00PG, An Energy Star Ally — TrillXP Edition
             </div>
             <div>Copyright (C) 1984-2003, Award Software, Inc.</div>
             <br />
@@ -88,9 +88,10 @@ export const BootSequence: React.FC = () => {
             <div>Memory Test : {memCount}K OK</div>
             <br />
             <div>Award Plug and Play BIOS Extension v1.0A</div>
-            <div>Detecting IDE Primary Master ... WDC WD800JB-00JJC0 (80.0GB)</div>
+            <div>Detecting IDE Primary Master ... WDC WD800JB-00JJC0 (80.0GB TrillXP VFS)</div>
             <div>Detecting IDE Primary Slave  ... SONY CD-RW CRX230E [AOL 9.0 Disc]</div>
             <div>Detecting PCI Modem          ... U.S. Robotics 56K Faxmodem V.90</div>
+            <div>Verifying Companion Package  ... TrillXP.apk (ai.trill.trillxp — V1+V2 OK)</div>
           </div>
           <div
             style={{
@@ -107,7 +108,7 @@ export const BootSequence: React.FC = () => {
           </div>
         </div>
         <div style={{ position: 'absolute', bottom: 26, left: 36, color: '#aaa', fontSize: 13 }}>
-          Press DEL to enter SETUP &nbsp;&nbsp;|&nbsp;&nbsp; Booting Microsoft Windows XP Professional...
+          Press DEL to enter SETUP &nbsp;&nbsp;|&nbsp;&nbsp; Booting TrillXP (Microsoft Windows XP Professional SP3)...
         </div>
       </div>
     );
@@ -148,12 +149,12 @@ export const BootSequence: React.FC = () => {
               style={{
                 color: '#ffffff',
                 fontFamily: 'Tahoma, Arial, sans-serif',
-                fontSize: 16,
+                fontSize: 15,
                 letterSpacing: 0.4,
                 marginBottom: -6,
               }}
             >
-              Microsoft<sup style={{ fontSize: 10 }}>®</sup>
+              Microsoft<sup style={{ fontSize: 10 }}>®</sup> Windows<sup style={{ fontSize: 10 }}>®</sup>
             </span>
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
               <span
@@ -166,14 +167,14 @@ export const BootSequence: React.FC = () => {
                   lineHeight: 1,
                 }}
               >
-                Windows
+                Trill
               </span>
               <span
                 style={{
                   color: '#eb6525',
                   fontFamily: "'Franklin Gothic Medium', 'Trebuchet MS', Arial, sans-serif",
                   fontWeight: 800,
-                  fontSize: 25,
+                  fontSize: 27,
                   marginLeft: 3,
                   marginTop: 3,
                 }}
@@ -181,6 +182,17 @@ export const BootSequence: React.FC = () => {
                 xp
               </span>
             </div>
+            <span
+              style={{
+                color: '#cbd5e1',
+                fontFamily: 'Tahoma, Arial, sans-serif',
+                fontSize: 12,
+                letterSpacing: 0.8,
+                marginTop: 4,
+              }}
+            >
+              2000s PC Time Machine &amp; Educator Museum
+            </span>
           </div>
         </div>
 

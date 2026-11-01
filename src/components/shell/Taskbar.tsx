@@ -182,6 +182,20 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onShowModal }) => {
           }}
         >
           <img
+            src="/icons/trillxp.svg"
+            alt="TrillXP Museum"
+            title="TrillXP 2000s Time Capsule & Educator Museum (Alt+M)"
+            onClick={() => openApp('trillxp-museum')}
+            style={{ width: 17, height: 17, cursor: 'pointer' }}
+          />
+          <img
+            src="/icons/android-apk.svg"
+            alt="TrillXP.apk"
+            title="Download Official TrillXP.apk for Android"
+            onClick={() => openApp('apk-installer')}
+            style={{ width: 17, height: 17, cursor: 'pointer' }}
+          />
+          <img
             src="/icons/896(16x16).png"
             alt="IE6"
             title="Launch Internet Explorer Browser"
@@ -198,8 +212,15 @@ export const Taskbar: React.FC<TaskbarProps> = ({ onShowModal }) => {
           <img
             src="/icons/slingo.svg"
             alt="Slingo"
-            title="Launch Slingo Deluxe"
+            title="Launch Slingo Deluxe (Classic AOL Casino)"
             onClick={() => openApp('slingo')}
+            style={{ width: 17, height: 17, cursor: 'pointer' }}
+          />
+          <img
+            src="/icons/powershell.svg"
+            alt="PowerShell"
+            title="Windows PowerShell 1.0 (Alt+P)"
+            onClick={() => openApp('powershell')}
             style={{ width: 17, height: 17, cursor: 'pointer' }}
           />
         </div>

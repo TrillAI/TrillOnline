@@ -23,6 +23,13 @@ import { SolitaireApp } from './components/apps/games/SolitaireApp';
 import { SpiderSolitaireApp } from './components/apps/games/SpiderSolitaireApp';
 import { FreeCellApp } from './components/apps/games/FreeCellApp';
 import { HeartsApp } from './components/apps/games/HeartsApp';
+import {
+  SkiFreeApp,
+  JezzBallApp,
+  MahjongTitansApp,
+  CheckersXPApp,
+  TetrisXPApp,
+} from './components/apps/games/ExtraClassicGames';
 
 // Arena AI Agent & Windows Update
 import { ArenaAgentApp } from './components/apps/arena/ArenaAgentApp';
@@ -60,6 +67,14 @@ import {
   RunDialogApp,
   TourXPApp,
 } from './components/apps/system/SystemUtilitiesApps';
+import { PowerShellApp } from './components/apps/system/PowerShellApp';
+import {
+  TrillXPMuseumApp,
+  TrillXPApkApp,
+  WordPadApp,
+  RegeditApp,
+  WinVerApp,
+} from './components/apps/system/TrillXPApps';
 
 const renderAppContent = (win: WindowInstance) => {
   switch (win.appId) {
@@ -99,8 +114,20 @@ const renderAppContent = (win: WindowInstance) => {
       return <FreeCellApp />;
     case 'hearts':
       return <HeartsApp />;
+    case 'skifree':
+      return <SkiFreeApp />;
+    case 'jezzball':
+      return <JezzBallApp />;
+    case 'mahjong':
+      return <MahjongTitansApp />;
+    case 'checkers':
+      return <CheckersXPApp />;
+    case 'tetris':
+      return <TetrisXPApp />;
     case 'notepad':
       return <NotepadApp windowId={win.id} payload={win.payload} />;
+    case 'wordpad':
+      return <WordPadApp payload={win.payload} />;
     case 'paint':
       return <PaintApp />;
     case 'calculator':
@@ -111,6 +138,16 @@ const renderAppContent = (win: WindowInstance) => {
       return <MediaPlayerApp payload={win.payload} />;
     case 'cmd':
       return <CommandPromptApp />;
+    case 'powershell':
+      return <PowerShellApp />;
+    case 'regedit':
+      return <RegeditApp />;
+    case 'winver':
+      return <WinVerApp windowId={win.id} />;
+    case 'trillxp-museum':
+      return <TrillXPMuseumApp />;
+    case 'apk-installer':
+      return <TrillXPApkApp />;
     case 'taskmgr':
       return <TaskManagerApp />;
     case 'control-panel':
@@ -206,6 +243,12 @@ const WindowsXPShell: React.FC = () => {
       } else if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         openApp('arena-ai');
+      } else if (e.altKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        openApp('powershell');
+      } else if (e.altKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        openApp('trillxp-museum');
       }
     };
     window.addEventListener('keydown', onKeyDown);

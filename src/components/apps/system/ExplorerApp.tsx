@@ -87,6 +87,10 @@ export const ExplorerApp: React.FC<ExplorerAppProps> = ({ windowId, isRecycleBin
       openApp('picture-viewer', { src: node.content, title: `${node.name} - Windows Picture and Fax Viewer` });
       return;
     }
+    if (node.mime === 'text/rtf' || node.name.endsWith('.rtf')) {
+      openApp('wordpad', { fileId: node.id, title: `${node.name} - WordPad` });
+      return;
+    }
     if (node.mime === 'text/html' || node.name.endsWith('.html')) {
       openApp('ie', { url: `vfs://${node.id}` });
       return;

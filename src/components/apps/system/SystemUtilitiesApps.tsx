@@ -273,76 +273,284 @@ export const MediaPlayerApp: React.FC<{ payload?: Record<string, unknown> }> = (
 };
 
 /* ============================================================================
-   2. COMMAND PROMPT (cmd.exe with VFS + xp-get + arena/slingo/wuauclt)
+   2. COMMAND PROMPT (cmd.exe — Full VFS Navigation + Networking + PowerShell/APK)
    ============================================================================ */
+const CMD_FOLDER_PATHS: Record<string, string> = {
+  root: 'C:\\',
+  'c:': 'C:\\',
+  'c-windows': 'C:\\WINDOWS',
+  'c-progfiles': 'C:\\Program Files',
+  'c-docs-root': 'C:\\Documents and Settings',
+  'my-docs': 'C:\\Documents and Settings\\Administrator\\My Documents',
+  'my-pics': 'C:\\Documents and Settings\\Administrator\\My Documents\\My Pictures',
+  'my-videos': 'C:\\Documents and Settings\\Administrator\\My Documents\\My Videos',
+  'my-music': 'C:\\Documents and Settings\\Administrator\\My Documents\\My Music',
+  'shared-dl': 'C:\\Documents and Settings\\Administrator\\Downloads',
+};
+
+const CMD_KEYWORDS = [
+  'help',
+  'dir',
+  'cd',
+  'tree',
+  'type',
+  'mkdir',
+  'del',
+  'echo',
+  'cls',
+  'ver',
+  'winver',
+  'systeminfo',
+  'tasklist',
+  'taskkill',
+  'ipconfig',
+  'ping',
+  'netstat',
+  'color',
+  'powershell',
+  'apk',
+  'xp-get',
+  'start',
+];
+
 export const CommandPromptApp: React.FC = () => {
-  const { vfs, openApp, launchInstallerWizard, aolConnected } = useOS();
+  const {
+    vfs,
+    windows,
+    closeWindow,
+    openApp,
+    createFile,
+    createFolder,
+    deleteNodeToRecycleBin,
+    launchInstallerWizard,
+    aolConnected,
+  } = useOS();
+
+  const [bgColor, setBgColor] = useState('#000000');
   const [fgColor, setFgColor] = useState('#c0c0c0');
+  const [cwdId, setCwdId] = useState<string>('my-docs');
   const [lines, setLines] = useState<string[]>([
-    'Microsoft Windows XP [Version 5.1.2600]',
-    '(C) Copyright 1985-2001 Microsoft Corp.',
+    'TrillXP — Microsoft Windows XP [Version 5.1.2600 Service Pack 3]',
+    '(C) Copyright 1985-2001 Microsoft Corp. Interactive 2000s Time Capsule.',
     '',
-    'Type "help" for commands, "start arena" for Arena AI, or "start slingo"!',
+    'Type "help" for commands, "powershell" for PowerShell 1.0, "apk" for TrillXP.apk, or "start slingo"!',
+    '',
   ]);
   const [cmd, setCmd] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [histIdx, setHistIdx] = useState(-1);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView();
   }, [lines]);
 
+  const curPromptPath =
+    CMD_FOLDER_PATHS[cwdId] ||
+    `C:\\Documents and Settings\\Administrator\\${vfs.find((n) => n.id === cwdId)?.name || 'My Documents'}`;
+
   const execCmd = (e: React.FormEvent) => {
     e.preventDefault();
     const raw = cmd.trim();
     setCmd('');
-    const out: string[] = [`C:\\Documents and Settings\\Administrator>${raw}`];
+    const out: string[] = [`${curPromptPath}>${raw}`];
     const lower = raw.toLowerCase();
 
     if (!raw) {
       setLines((l) => [...l, ...out]);
       return;
     }
+
+    setHistory((h) => [...h, raw]);
+    setHistIdx(-1);
+
     if (lower === 'cls' || lower === 'clear') {
       setLines([]);
       return;
     }
-    if (lower === 'help') {
+
+    // Handle output redirection: echo hello world > note.txt
+    if (lower.startsWith('echo ') && raw.includes('>')) {
+      const [left, right] = raw.split('>');
+      const textBody = left.replace(/^echo\s+/i, '').trim();
+      const targetName = (right || '').trim() || 'note.txt';
+      createFile(cwdId, targetName, textBody, 'text/plain');
+      out.push(`1 file(s) written: ${targetName}`);
+      setLines((l) => [...l, ...out]);
+      return;
+    }
+
+    const parts = raw.split(/\s+/);
+    const verb = parts[0].toLowerCase();
+    const rest = parts.slice(1).join(' ').replace(/^["']|["']$/g, '');
+
+    if (verb === 'help' || verb === '/?') {
       out.push(
-        'Available Commands:',
-        '  DIR             Lists files in My Documents & Persistent VFS',
-        '  VER             Displays Windows XP version',
-        '  IPCONFIG        Displays AOL 56K PPP adapter configuration',
-        '  WUAUCLT         Opens Microsoft Windows Update',
-        '  COLOR 0A        Matrix green terminal text (07 resets)',
-        '  START <app>     Opens app (arena, slingo, iexplore, pinball, winmine, sol, aol, aim)',
-        '  XP-GET LIST     Lists installable .EXE software packages',
-        '  XP-GET INSTALL <id>  Launches Setup Wizard (e.g. xp-get install winamp)'
+        'TrillXP Command Prompt (cmd.exe) Reference:',
+        '  DIR                  Lists files & subdirectories in current VFS folder',
+        '  CD <folder|..|\\>     Changes current directory',
+        '  TREE                 Displays graphical folder tree of C:\\',
+        '  TYPE <filename>      Displays text contents of a file',
+        '  ECHO text > file.txt Writes a persistent file into current folder',
+        '  MKDIR <name>         Creates a new directory',
+        '  DEL <name>           Moves a file/folder to Recycle Bin',
+        '  SYSTEMINFO / VER     Displays TrillXP OS & hardware specifications',
+        '  TASKLIST / TASKKILL  Lists or closes running XP window processes',
+        '  IPCONFIG / PING / NETSTAT  Displays 56K & network diagnostics',
+        '  COLOR <0A|07|1F|0E>  Changes console colors (0A = Matrix green, 1F = BSOD blue)',
+        '  POWERSHELL           Launches Windows PowerShell 1.0 (Monad)',
+        '  APK                  Downloads signed Android TrillXP.apk & opens Mobile Center',
+        '  START <program>      Opens any app (slingo, sol, spider, skifree, jezzball, mahjong, tetris, arena)',
+        '  XP-GET LIST / XP-GET INSTALL <id>  Installs .EXE software packages'
       );
-    } else if (lower === 'ver') {
-      out.push('', 'Microsoft Windows XP [Version 5.1.2600 Service Pack 3 + Arena AI Copilot]');
-    } else if (lower === 'wuauclt') {
-      openApp('windows-update');
-      out.push('Launched Microsoft Windows Update (wuauclt.exe).');
-    } else if (lower === 'dir') {
-      out.push(' Directory of C:\\Documents and Settings\\My Documents', '');
+    } else if (verb === 'ver') {
+      out.push('', 'TrillXP — Microsoft Windows XP [Version 5.1.2600 Service Pack 3]');
+    } else if (verb === 'winver') {
+      openApp('winver');
+      out.push('Opened About TrillXP (winver.exe).');
+    } else if (verb === 'systeminfo') {
+      out.push(
+        'Host Name:                 TRILLXP-PC',
+        'OS Name:                   TrillXP (Microsoft Windows XP Professional)',
+        'OS Version:                5.1.2600 Service Pack 3 Build 2600',
+        'System Purpose:            2000s Computing Time Machine & Educator Museum',
+        'Processor(s):              Intel(R) Pentium(R) 4 CPU 2.80GHz',
+        'Total Physical Memory:     512 MB',
+        'Shells Installed:          cmd.exe + Windows PowerShell 1.0 (KB926139)',
+        'Android Companion APK:     /downloads/TrillXP.apk (ai.trill.trillxp)'
+      );
+    } else if (verb === 'dir' || verb === 'ls') {
+      const items = vfs.filter((n) => n.parentId === cwdId);
+      out.push(` Volume in drive C is TRILLXP_OS`, ` Directory of ${curPromptPath}`, '');
+      items.forEach((n) => {
+        const tag = n.type === 'folder' || n.type === 'drive' ? '<DIR>         ' : String(n.sizeBytes || 1024).padStart(14);
+        out.push(`${n.modifiedAt.padEnd(16)}  ${tag} ${n.name}`);
+      });
+      out.push(`               ${items.length} item(s)`);
+    } else if (verb === 'tree') {
+      out.push('Folder PATH listing for volume TRILLXP_OS', 'C:.');
       vfs
-        .filter((n) => n.parentId === 'my-docs')
-        .forEach((n) => {
-          out.push(`${n.modifiedAt}    ${n.type === 'folder' ? '<DIR>     ' : '     1,024'} ${n.name}`);
+        .filter((n) => n.type === 'folder')
+        .forEach((f) => {
+          out.push(`├───${f.name}`);
         });
-    } else if (lower === 'ipconfig') {
+    } else if (verb === 'cd' || verb === 'chdir') {
+      if (!rest) {
+        out.push(curPromptPath);
+      } else if (rest === '\\' || rest.toLowerCase() === 'c:\\' || rest.toLowerCase() === 'c:') {
+        setCwdId('c:');
+      } else if (rest === '..') {
+        const cur = vfs.find((n) => n.id === cwdId);
+        if (cur?.parentId) setCwdId(cur.parentId);
+      } else {
+        const child = vfs.find(
+          (n) =>
+            (n.parentId === cwdId || cwdId === 'c:') &&
+            (n.type === 'folder' || n.type === 'drive') &&
+            n.name.toLowerCase() === rest.toLowerCase()
+        );
+        if (child) setCwdId(child.id);
+        else out.push('The system cannot find the path specified.');
+      }
+    } else if (verb === 'type' || verb === 'cat') {
+      const f = vfs.find((n) => n.parentId === cwdId && n.name.toLowerCase() === rest.toLowerCase());
+      if (!f) out.push('The system cannot find the file specified.');
+      else out.push(...(f.content || '(Binary or shortcut file)').split('\n'));
+    } else if (verb === 'mkdir' || verb === 'md') {
+      const fname = rest || 'New Folder';
+      createFolder(cwdId, fname);
+      out.push(`Created directory: ${fname}`);
+    } else if (verb === 'del' || verb === 'erase' || verb === 'rm') {
+      const target = vfs.find((n) => n.parentId === cwdId && n.name.toLowerCase() === rest.toLowerCase());
+      if (!target) out.push(`Could Not Find ${curPromptPath}\\${rest}`);
+      else {
+        deleteNodeToRecycleBin(target.id);
+        out.push(`Deleted ${target.name} (moved to Recycle Bin).`);
+      }
+    } else if (verb === 'echo') {
+      out.push(rest);
+    } else if (verb === 'date') {
+      out.push(`The current date is: ${new Date().toLocaleDateString()}`);
+    } else if (verb === 'time') {
+      out.push(`The current time is: ${new Date().toLocaleTimeString()}`);
+    } else if (verb === 'tasklist') {
+      out.push(
+        'Image Name                   PID Session Name     Mem Usage',
+        '========================= ====== ================ ============',
+        'explorer.exe                 400 Console             18,420 K',
+        'arena_agent.exe              712 Console             31,200 K',
+        ...windows.map(
+          (w, i) => `${(w.appId + '.exe').padEnd(25)} ${String(1400 + i * 44).padStart(6)} Console             14,208 K`
+        )
+      );
+    } else if (verb === 'taskkill') {
+      const q = rest.replace(/^\/im\s+/i, '').replace(/\.exe$/i, '').trim().toLowerCase();
+      const hit = windows.find((w) => w.appId.toLowerCase() === q);
+      if (!hit) out.push(`ERROR: The process "${q}" not found.`);
+      else {
+        closeWindow(hit.id);
+        out.push(`SUCCESS: Sent termination signal to process "${hit.appId}.exe".`);
+      }
+    } else if (verb === 'ipconfig') {
       out.push(
         'Windows IP Configuration',
         '',
+        'Ethernet adapter TrillXP High-Speed Bridge:',
+        '   Connection-specific DNS Suffix  . : trillxp.local',
+        '   IP Address. . . . . . . . . . . . : 192.168.1.104',
+        '   Default Gateway . . . . . . . . . : 192.168.1.1',
+        '',
         'PPP adapter America Online 56K Dial-Up:',
-        `   Media State . . . . . . : ${aolConnected ? 'Connected (56.0 Kbps)' : 'Media disconnected'}`,
-        `   IP Address. . . . . . . : ${aolConnected ? '172.164.82.19' : '0.0.0.0'}`,
-        '   Default Gateway . . . . : 205.188.0.1'
+        `   Media State . . . . . . . . . . . : ${aolConnected ? 'Connected (56.0 Kbps V.90)' : 'Media disconnected'}`,
+        `   IP Address. . . . . . . . . . . . : ${aolConnected ? '172.164.82.19' : '0.0.0.0'}`
       );
-    } else if (lower === 'color 0a') {
-      setFgColor('#22c55e');
-    } else if (lower === 'color 07') {
-      setFgColor('#c0c0c0');
+    } else if (verb === 'ping') {
+      const h = rest || 'arena.ai';
+      out.push(
+        `Pinging ${h} [104.18.26.120] with 32 bytes of data:`,
+        'Reply from 104.18.26.120: bytes=32 time=13ms TTL=57',
+        'Reply from 104.18.26.120: bytes=32 time=11ms TTL=57',
+        'Ping statistics: Sent = 2, Received = 2, Lost = 0 (0% loss)'
+      );
+    } else if (verb === 'netstat') {
+      out.push(
+        'Active Connections',
+        '  Proto  Local Address          Foreign Address        State',
+        '  TCP    192.168.1.104:1032     arena.ai:443           ESTABLISHED',
+        `  TCP    192.168.1.104:5190     aim.oscar.aol.com:5190 ${aolConnected ? 'ESTABLISHED' : 'SYN_SENT'}`
+      );
+    } else if (verb === 'color') {
+      const code = rest.toUpperCase();
+      if (code === '0A') {
+        setBgColor('#000000');
+        setFgColor('#22c55e');
+      } else if (code === '1F') {
+        setBgColor('#0000aa');
+        setFgColor('#ffffff');
+      } else if (code === '0E') {
+        setBgColor('#000000');
+        setFgColor('#fde047');
+      } else {
+        setBgColor('#000000');
+        setFgColor('#c0c0c0');
+      }
+    } else if (verb === 'powershell' || verb === 'pwsh') {
+      openApp('powershell');
+      out.push('Launched Windows PowerShell 1.0 (powershell.exe).');
+    } else if (verb === 'apk') {
+      openApp('apk-installer');
+      const a = document.createElement('a');
+      a.href = '/downloads/TrillXP.apk';
+      a.download = 'TrillXP.apk';
+      a.click();
+      out.push('Downloading /downloads/TrillXP.apk (ai.trill.trillxp) & opened TrillXP Mobile Center!');
+    } else if (verb === 'wuauclt') {
+      openApp('windows-update');
+      out.push('Launched Microsoft Windows Update (wuauclt.exe).');
+    } else if (verb === 'regedit') {
+      openApp('regedit');
+      out.push('Launched Registry Editor (regedit.exe).');
     } else if (lower === 'xp-get list') {
       out.push('Installable XP Software Packages:');
       INSTALLABLE_CATALOG.forEach((p) => {
@@ -359,12 +567,19 @@ export const CommandPromptApp: React.FC = () => {
       } else {
         out.push(`Package "${q}" not found. Try "xp-get list".`);
       }
-    } else if (lower.startsWith('start ')) {
-      const target = lower.replace('start ', '').trim();
+    } else if (verb === 'start') {
+      const target = rest.toLowerCase().replace(/\.exe$/, '');
       const map: Record<string, BuiltinAppId> = {
         arena: 'arena-ai',
         'arena-ai': 'arena-ai',
         slingo: 'slingo',
+        powershell: 'powershell',
+        museum: 'trillxp-museum',
+        apk: 'apk-installer',
+        wordpad: 'wordpad',
+        write: 'wordpad',
+        regedit: 'regedit',
+        winver: 'winver',
         iexplore: 'ie',
         ie: 'ie',
         wuauclt: 'windows-update',
@@ -376,6 +591,11 @@ export const CommandPromptApp: React.FC = () => {
         spider: 'spider',
         freecell: 'freecell',
         hearts: 'hearts',
+        skifree: 'skifree',
+        jezzball: 'jezzball',
+        mahjong: 'mahjong',
+        checkers: 'checkers',
+        tetris: 'tetris',
         aol: 'aol-dialer',
         aim: 'aim',
         paint: 'paint',
@@ -387,10 +607,10 @@ export const CommandPromptApp: React.FC = () => {
         openApp(map[target]);
         out.push(`Started ${target}.exe`);
       } else {
-        out.push(`Cannot find '${target}'.`);
+        out.push(`Cannot find '${target}'. Type HELP for program list.`);
       }
     } else {
-      out.push(`'${raw}' is not recognized as an internal or external command. Type HELP.`);
+      out.push(`'${parts[0]}' is not recognized as an internal or external command. Type HELP.`);
     }
 
     setLines((l) => [...l, ...out]);
@@ -398,9 +618,10 @@ export const CommandPromptApp: React.FC = () => {
 
   return (
     <div
+      onClick={() => inputRef.current?.focus()}
       style={{
         flex: 1,
-        background: '#000',
+        background: bgColor,
         color: fgColor,
         fontFamily: "'Lucida Console', 'Courier New', monospace",
         fontSize: 13,
@@ -408,6 +629,7 @@ export const CommandPromptApp: React.FC = () => {
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
+        cursor: 'text',
       }}
     >
       {lines.map((ln, idx) => (
@@ -416,14 +638,39 @@ export const CommandPromptApp: React.FC = () => {
         </div>
       ))}
       <form onSubmit={execCmd} style={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
-        <span>C:\Documents and Settings\Administrator&gt;</span>
+        <span style={{ whiteSpace: 'pre' }}>{curPromptPath}&gt;</span>
         <input
+          ref={inputRef}
           autoFocus
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              if (history.length === 0) return;
+              const next = histIdx === -1 ? history.length - 1 : Math.max(0, histIdx - 1);
+              setHistIdx(next);
+              setCmd(history[next]);
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              if (histIdx === -1) return;
+              if (histIdx >= history.length - 1) {
+                setHistIdx(-1);
+                setCmd('');
+              } else {
+                setHistIdx(histIdx + 1);
+                setCmd(history[histIdx + 1]);
+              }
+            } else if (e.key === 'Tab') {
+              e.preventDefault();
+              const q = cmd.trim().toLowerCase();
+              const match = CMD_KEYWORDS.find((k) => k.startsWith(q));
+              if (match) setCmd(match + ' ');
+            }
+          }}
           style={{
             flex: 1,
-            background: '#000',
+            background: 'transparent',
             color: fgColor,
             border: 'none',
             outline: 'none',
@@ -603,6 +850,15 @@ export const RunDialogApp: React.FC<{ windowId: string }> = ({ windowId }) => {
       wuauclt: 'windows-update',
       'windows-update': 'windows-update',
       cmd: 'cmd',
+      powershell: 'powershell',
+      pwsh: 'powershell',
+      wordpad: 'wordpad',
+      write: 'wordpad',
+      regedit: 'regedit',
+      winver: 'winver',
+      museum: 'trillxp-museum',
+      trillxp: 'trillxp-museum',
+      apk: 'apk-installer',
       calc: 'calculator',
       notepad: 'notepad',
       mspaint: 'paint',
@@ -616,6 +872,11 @@ export const RunDialogApp: React.FC<{ windowId: string }> = ({ windowId }) => {
       mshearts: 'hearts',
       hearts: 'hearts',
       pinball: 'pinball',
+      skifree: 'skifree',
+      jezzball: 'jezzball',
+      mahjong: 'mahjong',
+      checkers: 'checkers',
+      tetris: 'tetris',
       aol: 'aol-dialer',
       gmail: 'aol-mailbox',
       aim: 'aim',
@@ -637,7 +898,7 @@ export const RunDialogApp: React.FC<{ windowId: string }> = ({ windowId }) => {
     } else {
       playSound('error');
       alert(
-        `Windows cannot find '${input}'. Try: arena, slingo, iexplore, wuauclt, pinball, winmine, sol, spider, freecell, mshearts, aol, gmail, aim, cmd, mspaint`
+        `Windows cannot find '${input}'. Try: powershell, cmd, slingo, sol, spider, freecell, skifree, jezzball, mahjong, checkers, tetris, museum, apk, wordpad, regedit, winver, arena, iexplore, aol, aim`
       );
     }
   };
@@ -694,9 +955,11 @@ export const TourXPApp: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <WindowsXPFlagSVG size={68} />
         <div>
-          <h2 style={{ margin: 0, fontSize: 24 }}>Welcome to Microsoft Windows XP</h2>
+          <h2 style={{ margin: 0, fontSize: 24 }}>
+            Welcome to Trill<span style={{ color: '#fde047' }}>XP</span> (Windows XP SP3)
+          </h2>
           <div style={{ color: '#bfdbfe', fontSize: 13 }}>
-            Built-in Arena AI Agent, Classic Slingo Deluxe, Persistent IE6, Original XP Games & AOL 9.8 + Gmail!
+            Go back to experience the early-2000s PC era — or educate anyone who missed Dial-Up, AOL, Classic Slingo &amp; Windows XP!
           </div>
         </div>
       </div>
@@ -704,28 +967,28 @@ export const TourXPApp: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '14px 0' }}>
         {[
           {
-            title: '✨ Arena AI Agent Built Into XP',
-            desc: 'Run autonomous coding & OS tasks, generate HD PNG images and playable WebM videos saved straight into persistent VFS storage!',
-            btn: 'Open Arena AI Agent',
-            action: () => openApp('arena-ai'),
+            title: '🏛️ 2000s Time Capsule & Educator Museum',
+            desc: 'Explore interactive exhibits, Then-vs-Now history, iconic 56K/AOL/XP sound artifacts, and hands-on quests!',
+            btn: 'Open TrillXP Museum',
+            action: () => openApp('trillxp-museum'),
           },
           {
-            title: '🎰 Classic AOL Slingo Deluxe + 6 XP Games',
-            desc: 'Play authentic 20-spin Slingo Deluxe (Jokers, Gold Coins, Devil & Cherub!), Space Cadet Pinball, Minesweeper, Solitaire, Spider, FreeCell & Hearts!',
+            title: '📱 Download Official TrillXP.apk (Android)',
+            desc: 'Install our V1+V2 cryptographically signed Android package (ai.trill.trillxp) or add as a fullscreen PWA!',
+            btn: 'Get TrillXP.apk',
+            action: () => openApp('apk-installer'),
+          },
+          {
+            title: '🎰 Classic AOL Slingo + 12 PC Games',
+            desc: 'Play authentic Slingo (with the Devil Laugh!), zero-lag Solitaire & Spider, SkiFree, JezzBall, Mahjong, Tetris & Pinball!',
             btn: 'Play Slingo Deluxe',
             action: () => openApp('slingo'),
           },
           {
-            title: '🌐 Fast Persistent Internet Explorer 6',
-            desc: 'Browse the real web inside classic IE6 with persistent tabs, Favorites, live search, https://arena.ai/agent, and anti-X-Frame Turbo Reader!',
-            btn: 'Open Internet Explorer 6',
-            action: () => openApp('ie'),
-          },
-          {
-            title: '📞 AOL 56K Dial-Up + Gmail & Updates',
-            desc: 'Dial 959-262-8674, hear "You\'ve got mail!", connect Gmail, or install Royale & Zune themes in Windows Update!',
-            btn: 'Open Windows Update',
-            action: () => openApp('windows-update'),
+            title: '💻 PowerShell 1.0, CMD & Arena AI Agent',
+            desc: 'Run Windows PowerShell 1.0 (Monad), full cmd.exe, AOL 9.8 + Gmail, IE6, and the built-in Arena AI Agent!',
+            btn: 'Open PowerShell 1.0',
+            action: () => openApp('powershell'),
           },
         ].map((card) => (
           <div
