@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useOS } from '../../context/OSContext';
+import { useOS, OS_METADATA, OSType } from '../../context/OSContext';
 import { useSound } from '../../context/SoundContext';
 import { WindowsXPFlagSVG } from '../apps/aol/AOLGraphics';
 
+const ALL_OS: OSType[] = ['winxp', 'win10', 'macos', 'linux', 'debian', 'centos'];
+
 export const BootSequence: React.FC = () => {
-  const { bootPhase, setBootPhase } = useOS();
+  const { bootPhase, setBootPhase, osType, switchOperatingSystem } = useOS();
   const { playPostBeep, unlockAudio } = useSound();
   const [memCount, setMemCount] = useState(65536);
   const [fadeInLogo, setFadeInLogo] = useState(false);
@@ -25,7 +27,7 @@ export const BootSequence: React.FC = () => {
       }, 160);
       const t = window.setTimeout(() => {
         setBootPhase('booting');
-      }, 1450);
+      }, 1750);
       return () => {
         clearInterval(iv);
         clearTimeout(t);
@@ -37,7 +39,7 @@ export const BootSequence: React.FC = () => {
       const f = window.setTimeout(() => setFadeInLogo(true), 80);
       const t = window.setTimeout(() => {
         setBootPhase('welcome');
-      }, 4100);
+      }, 3900);
       return () => {
         clearTimeout(f);
         clearTimeout(t);
@@ -45,6 +47,7 @@ export const BootSequence: React.FC = () => {
     }
   }, [bootPhase, setBootPhase, playPostBeep]);
 
+  // First thing visible on load MUST be a pure #000000 black screen!
   if (bootPhase === 'black') {
     return (
       <div
@@ -73,25 +76,23 @@ export const BootSequence: React.FC = () => {
           fontSize: 15,
           padding: '28px 36px',
           lineHeight: 1.55,
-          cursor: 'none',
           zIndex: 99999,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ color: '#fff', fontWeight: 700 }}>
-              Award Modular BIOS v6.00PG, An Energy Star Ally — TrillXP Edition
+              Award Modular BIOS v6.00PG, An Energy Star Ally — TrillXP Multi-OS Edition
             </div>
             <div>Copyright (C) 1984-2003, Award Software, Inc.</div>
             <br />
-            <div style={{ color: '#fff' }}>Intel(R) Pentium(R) 4 CPU 2.80GHz</div>
+            <div style={{ color: '#fff' }}>Intel(R) Pentium(R) 4 / Multi-Boot Virtualizer 2.80GHz</div>
             <div>Memory Test : {memCount}K OK</div>
             <br />
-            <div>Award Plug and Play BIOS Extension v1.0A</div>
-            <div>Detecting IDE Primary Master ... WDC WD800JB-00JJC0 (80.0GB TrillXP VFS)</div>
-            <div>Detecting IDE Primary Slave  ... SONY CD-RW CRX230E [AOL 9.0 Disc]</div>
-            <div>Detecting PCI Modem          ... U.S. Robotics 56K Faxmodem V.90</div>
-            <div>Verifying Companion Package  ... TrillXP.apk (ai.trill.trillxp — V1+V2 OK)</div>
+            <div>Detecting Primary Partition 0 ... Microsoft Windows XP Professional SP3</div>
+            <div>Detecting Multi-OS Images     ... Windows 10 • Mac OS • Linux • Debian 12 • CentOS</div>
+            <div>Detecting Retro Vault         ... 3D Brick Maze • BonziBUDDY • 20 Classic PC Games</div>
+            <div>Verifying Companion Package   ... TrillXP.apk (ai.trill.trillxp — V1+V2 OK)</div>
           </div>
           <div
             style={{
@@ -104,17 +105,142 @@ export const BootSequence: React.FC = () => {
             }}
           >
             <div style={{ color: '#4fa64f' }}>ENERGY STAR</div>
-            <div>EPA POLLUTION PREVENTER</div>
+            <div>MULTI-OS BOOTLOADER</div>
           </div>
         </div>
-        <div style={{ position: 'absolute', bottom: 26, left: 36, color: '#aaa', fontSize: 13 }}>
-          Press DEL to enter SETUP &nbsp;&nbsp;|&nbsp;&nbsp; Booting TrillXP (Microsoft Windows XP Professional SP3)...
+
+        {/* Optional GRUB / Multi-Boot Quick OS Selector */}
+        <div style={{ position: 'absolute', bottom: 26, left: 36, right: 36 }}>
+          <div style={{ color: '#fde047', fontSize: 12.5, marginBottom: 6 }}>
+            GRUB Multi-Boot Target: <b>{OS_METADATA[osType].name}</b> (click to boot a different OS, or wait for auto-boot):
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {ALL_OS.map((id) => (
+              <button
+                key={id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  unlockAudio();
+                  switchOperatingSystem(id, true);
+                }}
+                style={{
+                  background: osType === id ? '#ffffff' : '#111827',
+                  color: osType === id ? '#000000' : '#cbd5e1',
+                  border: '1px solid #64748b',
+                  padding: '3px 10px',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {OS_METADATA[id].shortName}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   if (bootPhase === 'booting') {
+    // 1. Windows 10 Boot Screen
+    if (osType === 'win10') {
+      return (
+        <div
+          onClick={unlockAudio}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#000000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 48,
+            zIndex: 99999,
+            opacity: fadeInLogo ? 1 : 0,
+            transition: 'opacity 0.4s ease',
+          }}
+        >
+          <style>{`@keyframes win10Spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <img src="/icons/os-win10.svg" alt="Windows 10" style={{ width: 96, height: 96 }} />
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              border: '3px solid rgba(255,255,255,0.18)',
+              borderTopColor: '#ffffff',
+              animation: 'win10Spin 0.95s linear infinite',
+            }}
+          />
+        </div>
+      );
+    }
+
+    // 2. Mac OS Apple Boot Screen
+    if (osType === 'macos') {
+      return (
+        <div
+          onClick={unlockAudio}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#000000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 42,
+            zIndex: 99999,
+            opacity: fadeInLogo ? 1 : 0,
+            transition: 'opacity 0.4s ease',
+          }}
+        >
+          <style>{`@keyframes macBar { 0% { width: 8%; } 100% { width: 100%; } }`}</style>
+          <div style={{ fontSize: 82, color: '#ffffff', lineHeight: 1 }}></div>
+          <div style={{ width: 190, height: 6, borderRadius: 99, background: '#333', overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#ffffff', animation: 'macBar 3.6s ease-out forwards' }} />
+          </div>
+        </div>
+      );
+    }
+
+    // 3. Linux / Debian / CentOS Kernel & systemd Boot Screen
+    if (osType === 'linux' || osType === 'debian' || osType === 'centos') {
+      const meta = OS_METADATA[osType];
+      return (
+        <div
+          onClick={unlockAudio}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#000000',
+            color: '#e2e8f0',
+            fontFamily: '"Courier New", monospace',
+            fontSize: 13.5,
+            padding: '28px 36px',
+            lineHeight: 1.6,
+            zIndex: 99999,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <img src={meta.icon} alt="" style={{ width: 48, height: 48 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#fff' }}>Booting {meta.name}</div>
+              <div style={{ color: '#94a3b8' }}>Linux version {meta.kernel} (gcc 12.2.0) #1 SMP PREEMPT_DYNAMIC</div>
+            </div>
+          </div>
+          <div>[<span style={{ color: '#4ade80' }}>  OK  </span>] Mounted Persistent VFS Root Partition (/dev/nvme0n1p2).</div>
+          <div>[<span style={{ color: '#4ade80' }}>  OK  </span>] Reached target Network &amp; Sound Subsystem (WebAudio DSP).</div>
+          <div>[<span style={{ color: '#4ade80' }}>  OK  </span>] Initialized Retro Classics Layer (3D Maze, Oregon Trail, BonziBUDDY).</div>
+          <div>[<span style={{ color: '#4ade80' }}>  OK  </span>] Started Graphical Display Manager ({osType === 'linux' ? 'LightDM' : 'GDM3'})...</div>
+        </div>
+      );
+    }
+
+    // 4. Default Authentic Microsoft Windows XP / TrillXP Boot Screen!
     return (
       <div
         onClick={unlockAudio}
@@ -139,7 +265,6 @@ export const BootSequence: React.FC = () => {
           }
         `}</style>
 
-        {/* Center Windows XP Logo Lockup (Exact match to Image 6) */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 56 }}>
           <div style={{ marginLeft: 56, marginBottom: 4 }}>
             <WindowsXPFlagSVG size={98} />
@@ -191,7 +316,7 @@ export const BootSequence: React.FC = () => {
                 marginTop: 4,
               }}
             >
-              2000s PC Time Machine &amp; Educator Museum
+              Multi-OS Retro Time Machine &amp; Educator Museum
             </span>
           </div>
         </div>
@@ -233,7 +358,6 @@ export const BootSequence: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Copyright & Microsoft Wordmark (Exact match to Image 6) */}
         <div
           style={{
             position: 'absolute',
@@ -244,7 +368,7 @@ export const BootSequence: React.FC = () => {
             fontFamily: 'Tahoma, sans-serif',
           }}
         >
-          Copyright © Microsoft Corporation
+          Copyright © Microsoft Corporation • TrillXP Multi-OS Edition
         </div>
         <div
           style={{

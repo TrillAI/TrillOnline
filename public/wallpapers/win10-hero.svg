@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="w10g" cx="72%" cy="48%" r="65%">
+        <stop offset="0%" stop-color="#38bdf8"/>
+        <stop offset="28%" stop-color="#0284c7"/>
+        <stop offset="62%" stop-color="#0f172a"/>
+        <stop offset="100%" stop-color="#020617"/>
+      </radialGradient>
+      <linearGradient id="beam" x1="1" y1="0.3" x2="0" y2="0.7">
+        <stop offset="0%" stop-color="#e0f2fe" stop-opacity="0.85"/>
+        <stop offset="40%" stop-color="#0ea5e9" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <rect width="1920" height="1080" fill="url(#w10g)"/>
+    <polygon points="1920,80 1120,360 1120,720 1920,1000" fill="url(#beam)"/>
+    <g transform="translate(1180,290)" opacity="0.92">
+      <polygon points="0,70 190,42 190,230 0,230" fill="#38bdf8" opacity="0.85"/>
+      <polygon points="212,38 450,2 450,230 212,230" fill="#7dd3fc" opacity="0.95"/>
+      <polygon points="0,252 190,252 190,440 0,412" fill="#0ea5e9" opacity="0.85"/>
+      <polygon points="212,252 450,252 450,480 212,444" fill="#38bdf8" opacity="0.92"/>
+    </g>
+  </svg>
